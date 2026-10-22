@@ -4,7 +4,7 @@ import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 const field =
-    'w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-card-foreground placeholder:text-muted-foreground focus:border-lake';
+    'w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-card-foreground placeholder:text-muted-foreground focus:border-highlight';
 
 function Field({ label, id, error, children }: { label: string; id: string; error?: string; children: React.ReactNode }) {
     return (

@@ -1,9 +1,9 @@
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
-import { ContactForm } from '@/components/contact-form';
-import { Icon } from '@/components/icon';
-import { Reveal } from '@/components/reveal';
-import { Container, PageHero, SectionHeading } from '@/components/ui';
+import { ContactForm } from '@/Components/contact-form';
+import { Icon } from '@/Components/icon';
+import { Reveal } from '@/Components/reveal';
+import { Container, PageHero, SectionHeading } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import type { PartnershipRoute } from '@/types';
 
@@ -49,7 +49,7 @@ export default function GetInvolved({ routes: partnershipRoutes, interests, deve
                                     </span>
                                     <span className="mt-5 font-display text-xl font-semibold">{route.title}</span>
                                     <span className="mt-2 flex-1 text-sm text-muted-foreground">{route.body}</span>
-                                    <span className="mt-5 text-sm font-semibold text-lake">Start here &rarr;</span>
+                                    <span className="mt-5 text-sm font-semibold text-highlight">Start here &rarr;</span>
                                 </button>
                             </Reveal>
                         ))}

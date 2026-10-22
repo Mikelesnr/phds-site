@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { Check } from 'lucide-react';
-import { Reveal } from '@/components/reveal';
-import { ButtonLink, Coin, Container, Eyebrow, PageHero, SectionHeading } from '@/components/ui';
+import { Reveal } from '@/Components/reveal';
+import { ButtonLink, Coin, Container, Eyebrow, PageHero, SectionHeading } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import type { Value } from '@/types';
 
@@ -54,7 +54,7 @@ export default function About({ story, vision, mission, values, objectives, deve
                 </Container>
             </section>
 
-            <section className="bg-muted py-20 sm:py-24">
+            <section id="values" className="scroll-mt-24 bg-muted py-20 sm:py-24">
                 <Container>
                     <Reveal>
                         <SectionHeading eyebrow="Values" title="What guides our work." />
@@ -89,16 +89,16 @@ export default function About({ story, vision, mission, values, objectives, deve
                         </ol>
                     </Reveal>
                     <Reveal delay={120}>
-                        <div className="rounded-3xl border border-border bg-card p-8 sm:p-10">
+                        <div id="development" className="scroll-mt-24 rounded-3xl border border-border bg-card p-8 sm:p-10">
                             <Eyebrow>Where we are now</Eyebrow>
-                            <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Building the organisation behind the mission.</h2>
+                            <h2 className="mt-3 text-2xl font-medium sm:text-3xl">Building the organisation behind the mission.</h2>
                             <p className="mt-4 text-muted-foreground">
                                 PHDS is putting its foundations in place. Our current organisational development work includes:
                             </p>
                             <ul className="mt-6 space-y-3">
                                 {development.map((item) => (
                                     <li key={item} className="flex items-start gap-3">
-                                        <Check className="mt-1 size-5 shrink-0 text-lake" aria-hidden="true" />
+                                        <Check className="mt-1 size-5 shrink-0 text-highlight" aria-hidden="true" />
                                         <span>{item}</span>
                                     </li>
                                 ))}

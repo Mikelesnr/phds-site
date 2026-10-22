@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
-import { Reveal } from '@/components/reveal';
-import { ButtonLink, Container, Eyebrow, PageHero } from '@/components/ui';
+import { Reveal } from '@/Components/reveal';
+import { ButtonLink, Container, Eyebrow, PageHero } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import type { FieldStory, FocusArea } from '@/types';
 
@@ -34,7 +34,7 @@ export default function FocusAreaShow({ area, fieldStory, previous, next }: Prop
                         <p className="mt-4 font-display text-2xl font-medium leading-snug sm:text-3xl">{area.intro}</p>
                         {area.case && (
                             <figure className="mt-8 rounded-3xl bg-muted p-6">
-                                <figcaption className="text-xs font-semibold uppercase tracking-widest text-lake">
+                                <figcaption className="text-xs font-semibold uppercase tracking-widest text-highlight">
                                     A case from the lake
                                 </figcaption>
                                 <blockquote className="mt-2 text-lg font-medium">{area.case}</blockquote>
@@ -46,7 +46,7 @@ export default function FocusAreaShow({ area, fieldStory, previous, next }: Prop
                         {area.groups.map((group, index) => (
                             <Reveal key={group.heading} delay={index * 100}>
                                 <div className="rounded-3xl border border-border bg-card p-7 sm:p-8">
-                                    <h2 className="text-2xl font-semibold">{group.heading}</h2>
+                                    <h2 className="text-2xl font-medium">{group.heading}</h2>
                                     <ul className="mt-5 space-y-3">
                                         {group.items.map((item) => (
                                             <li key={item} className="flex items-start gap-3">

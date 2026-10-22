@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { FocusAreaCardView } from '@/components/focus-area-card';
-import { Reveal } from '@/components/reveal';
-import { ButtonLink, Coin, Container, PageHero, SectionHeading } from '@/components/ui';
+import { FocusAreaCardView } from '@/Components/focus-area-card';
+import { Reveal } from '@/Components/reveal';
+import { ButtonLink, Coin, Container, PageHero, SectionHeading } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import type { FocusAreaCard, Pillar } from '@/types';
 

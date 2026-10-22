@@ -1,11 +1,23 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowRight } from 'lucide-react';
-import { CountyChart } from '@/components/county-chart';
-import { FocusAreaCardView } from '@/components/focus-area-card';
-import { Reveal } from '@/components/reveal';
-import { ButtonLink, Coin, Container, Eyebrow, SectionHeading } from '@/components/ui';
+import { CountyChart } from '@/Components/county-chart';
+import { Reveal } from '@/Components/reveal';
+import {
+    ButtonLink,
+    Container,
+    Eyebrow,
+    Hl,
+    RingIcon,
+} from '@/Components/ui';
 import { routes } from '@/lib/routes';
-import type { Basin, County, FieldStory, FocusAreaCard, Pillar, Stat } from '@/types';
+import { cn } from '@/lib/utils';
+import type {
+    Basin,
+    County,
+    FieldStory,
+    FocusAreaCard,
+    Pillar,
+    Stat,
+} from '@/types';
 
 type Props = {
     stats: Stat[];
@@ -18,7 +30,118 @@ type Props = {
     focusAreas: FocusAreaCard[];
 };
 
-export default function Home({ stats, quote, mission, pillars, fieldStory, counties, basin, focusAreas }: Props) {
+type FeatureItem = { icon: string; title: string; body: string; href?: string };
+
+type Feature = {
+    heading: string;
+    cardClass: string;
+    quote: string;
+    byline: string;
+    avatar: string;
+    items: FeatureItem[];
+};
+
+function StatTile({
+    stat,
+    image,
+    className,
+}: {
+    stat: Stat;
+    image: string;
+    className?: string;
+}) {
+    return (
+        <div
+            className={cn(
+                'relative isolate flex min-h-[18rem] items-center justify-center overflow-hidden rounded-[2rem] p-8 text-center text-white',
+                className,
+            )}
+        >
+            <img
+                src={image}
+                alt=""
+                loading="lazy"
+                className="absolute inset-0 -z-20 size-full object-cover"
+            />
+            <div className="absolute inset-0 -z-10 bg-black/50" />
+            <div>
+                <p className="font-display text-6xl font-medium leading-none sm:text-7xl">
+                    {stat.value}
+                </p>
+                <p className="mt-3 font-display text-2xl font-medium sm:text-3xl">
+                    {stat.label}
+                </p>
+                <p className="mx-auto mt-3 max-w-xs text-sm text-white/80">
+                    {stat.note}
+                </p>
+            </div>
+        </div>
+    );
+}
+
+export default function Home({
+    stats,
+    quote,
+    mission,
+    pillars,
+    fieldStory,
+    counties,
+    basin,
+    focusAreas,
+}: Props) {
+    const area = (slug: string): FeatureItem => {
+        const found = focusAreas.find((item) => item.slug === slug)!;
+        return {
+            icon: found.icon,
+            title: found.title,
+            body: found.summary,
+            href: routes.focusArea(slug),
+        };
+    };
+    const pillar = (title: string): FeatureItem => {
+        const found = pillars.find((item) => item.title === title)!;
+        return { icon: found.icon, title: found.title, body: found.body };
+    };
+
+    const features: Feature[] = [
+        {
+            heading: 'Healthy waters, land and climate.',
+            cardClass: 'bg-forest',
+            quote: mission,
+            byline: 'PHDS mission',
+            avatar: '/images/beach-landing.jpg',
+            items: [
+                area('blue-economy'),
+                area('climate-change'),
+                area('green-economy'),
+            ],
+        },
+        {
+            heading: 'Healthy people and animals.',
+            cardClass: 'bg-lagoon',
+            quote: fieldStory.lesson,
+            byline: fieldStory.label,
+            avatar: '/images/health-outreach.jpg',
+            items: [
+                area('global-health'),
+                area('one-health'),
+                pillar('Community participation'),
+            ],
+        },
+        {
+            heading: 'Evidence, innovation and capacity.',
+            cardClass: 'bg-band',
+            quote,
+            byline: 'Our approach',
+            avatar: '/images/shared-shoreline.jpg',
+            items: [
+                area('research-and-policy'),
+                pillar('Technology and innovation'),
+                pillar('Interdisciplinary action'),
+            ],
+        },
+    ];
+
     return (
         <>
             <Head>
@@ -26,192 +149,248 @@ export default function Home({ stats, quote, mission, pillars, fieldStory, count
                 <meta name="description" content={mission} />
             </Head>
 
-            {/* Hero */}
-            <section className="relative isolate overflow-hidden bg-band text-band-foreground">
-                <img
-                    src="/images/landing-site.jpg"
-                    alt=""
-                    fetchPriority="high"
-                    className="absolute inset-0 -z-20 h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 -z-10 bg-linear-to-r from-[#071a26] via-[#071a26]/80 to-[#071a26]/20" />
-                <Container className="py-24 sm:py-32 lg:py-44">
-                    <div className="max-w-2xl">
-                        <Eyebrow light>Lake Victoria Basin, Kenya</Eyebrow>
-                        <h1 className="mt-4 text-4xl font-semibold leading-[1.05] sm:text-6xl lg:text-7xl">
-                            A thriving planet for humans and all life forms.
+            {/* Hero: dark green panel beside a photograph */}
+            <section className="grid bg-band text-band-foreground lg:min-h-[36rem] lg:grid-cols-2">
+                <div className="flex items-center px-5 py-16 sm:px-12 lg:px-16 lg:py-24">
+                    <div className="max-w-xl">
+                        <h1 className="text-6xl font-medium leading-[0.98] sm:text-7xl lg:text-[5.25rem]">
+                            A <Hl light>thriving planet</Hl> for humans and all
+                            life forms.
                         </h1>
-                        <p className="mt-6 max-w-xl text-lg text-band-muted sm:text-xl">
-                            We work with communities around Lake Victoria to restore ecosystems, protect health and
-                            secure livelihoods, through interdisciplinary and evidence-based action.
+                        <p className="mt-8 max-w-md text-xl">
+                            We work with communities around Lake Victoria to
+                            restore ecosystems, protect health and secure
+                            livelihoods.
                         </p>
-                        <div className="mt-9 flex flex-wrap gap-3">
-                            <ButtonLink href={routes.getInvolved} variant="accent" arrow>
-                                Partner with us
-                            </ButtonLink>
-                            <ButtonLink href={routes.whatWeDo} variant="outline-light">
-                                Explore our work
+                        <div className="mt-10">
+                            <ButtonLink
+                                href={routes.getInvolved}
+                                variant="accent"
+                                className="px-8 py-4 text-lg"
+                            >
+                                Partner With Us
                             </ButtonLink>
                         </div>
                     </div>
+                </div>
+                <div className="relative min-h-[20rem]">
+                    <img
+                        src="/images/landing-site.jpg"
+                        alt="Fishing boats lined up along the shore at Sori on Lake Victoria"
+                        fetchPriority="high"
+                        className="absolute inset-0 size-full object-cover"
+                    />
+                </div>
+            </section>
+
+            {/* Intro */}
+            <section className="py-20 sm:py-28">
+                <Container className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+                    <div className="lg:col-span-4">
+                        <Eyebrow>
+                            {stats[1]?.value} million people live in our five
+                            focus counties
+                        </Eyebrow>
+                    </div>
+                    <Reveal className="lg:col-span-8">
+                        <h2 className="text-4xl font-medium leading-[1.05] sm:text-5xl lg:text-6xl">
+                            <Hl>Regenerative solutions</Hl> for the health of
+                            the planet, communities and ecosystems.
+                        </h2>
+                        <div className="mt-10 max-w-2xl space-y-6 text-lg text-muted-foreground">
+                            <p>
+                                PHDS works with communities on the shore of
+                                Lake Victoria, where climate change,
+                                biodiversity loss, disease and poverty arrive
+                                together.
+                            </p>
+                            <p>
+                                Through interdisciplinary, multisectoral and
+                                evidence-based action, we help communities
+                                become partners in restoring the systems they
+                                depend on.
+                            </p>
+                        </div>
+                    </Reveal>
                 </Container>
             </section>
 
-            <div className="bg-accent text-accent-foreground">
-                <Container className="flex flex-col gap-1 py-3 text-sm font-medium sm:flex-row sm:items-center sm:justify-between">
-                    <p>A Public Benefit Organization registered in Kenya, working across five Lake Victoria counties.</p>
-                    <Link href={routes.whereWeWork} className="inline-flex items-center gap-1 font-semibold underline-offset-4 hover:underline">
-                        Where we work <ArrowRight className="size-4" aria-hidden="true" />
-                    </Link>
+            {/* Numbers */}
+            <section className="pb-20 sm:pb-28">
+                <Container className="grid gap-6 lg:grid-cols-3">
+                    <Reveal className="lg:col-span-2">
+                        <div className="flex min-h-[18rem] items-center justify-center rounded-[2rem] bg-accent p-10 text-center text-accent-foreground">
+                            <p className="max-w-xl font-display text-3xl font-medium leading-snug sm:text-4xl">
+                                PHDS works across {stats[0]?.value} Lake Victoria
+                                counties in Kenya.
+                            </p>
+                        </div>
+                    </Reveal>
+                    {stats[1] && (
+                        <Reveal delay={100}>
+                            <StatTile
+                                stat={stats[1]}
+                                image="/images/beach-landing.jpg"
+                                className="h-full"
+                            />
+                        </Reveal>
+                    )}
+                    {stats[2] && (
+                        <Reveal>
+                            <StatTile
+                                stat={stats[2]}
+                                image="/images/cage-farming.jpg"
+                                className="h-full"
+                            />
+                        </Reveal>
+                    )}
+                    {stats[3] && (
+                        <Reveal className="lg:col-span-2" delay={100}>
+                            <StatTile
+                                stat={stats[3]}
+                                image="/images/shared-shoreline.jpg"
+                                className="h-full"
+                            />
+                        </Reveal>
+                    )}
                 </Container>
-            </div>
+            </section>
 
-            {/* Stats */}
-            <section className="bg-band text-band-foreground" aria-label="PHDS at a glance">
-                <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
-                    {stats.map((stat, index) => (
-                        <Reveal key={stat.label} delay={index * 100}>
-                            <div className="border-l-2 border-accent pl-5">
-                                <p className="font-display text-5xl font-semibold text-accent">{stat.value}</p>
-                                <h2 className="mt-2 font-sans text-base font-semibold">{stat.label}</h2>
-                                <p className="mt-1 text-sm text-band-muted">{stat.note}</p>
+            {/* The difference */}
+            <section className="bg-ink text-white">
+                <div className="relative h-72 sm:h-96">
+                    <img
+                        src="/images/market-storks.jpg"
+                        alt="People and marabou storks sharing a lakeside market"
+                        loading="lazy"
+                        className="size-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/20" />
+                </div>
+                <Container className="relative z-10 pb-20 sm:pb-28">
+                    <Reveal>
+                        <div className="-mt-24 rounded-[2rem] bg-accent p-8 text-accent-foreground shadow-2xl sm:-mt-32 sm:p-12">
+                            <h2 className="text-4xl font-medium leading-tight sm:text-6xl">
+                                The difference is stewardship.
+                            </h2>
+                            <div className="mt-8 grid gap-8 text-lg md:grid-cols-2 md:gap-12">
+                                <p>
+                                    <strong>
+                                        Poverty, disease and environmental
+                                        decline share the same roots:
+                                    </strong>{' '}
+                                    unsustainable use of natural resources,
+                                    policy gaps, communities left out of
+                                    decisions, and too little financing.
+                                </p>
+                                <div>
+                                    <p>
+                                        PHDS takes planetary health stewardship
+                                        as a unifying approach. We bring health,
+                                        environment, economy and policy
+                                        together, with local communities in the
+                                        lead.
+                                    </p>
+                                    <div className="mt-8">
+                                        <ButtonLink
+                                            href={routes.about}
+                                            variant="dark"
+                                        >
+                                            Read Our Story
+                                        </ButtonLink>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Reveal>
+                </Container>
+            </section>
+
+            {/* Three feature blocks */}
+            <section className="bg-ink pb-20 text-white sm:pb-28">
+                <Container className="space-y-20 sm:space-y-28">
+                    {features.map((feature) => (
+                        <Reveal key={feature.heading}>
+                            <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,34rem)_1fr] lg:gap-20">
+                                <div
+                                    className={cn(
+                                        'flex flex-col justify-between gap-12 rounded-[2rem] p-8 sm:p-10 lg:min-h-[34rem]',
+                                        feature.cardClass,
+                                    )}
+                                >
+                                    <h2 className="text-5xl font-medium leading-[1.02] sm:text-6xl">
+                                        {feature.heading}
+                                    </h2>
+                                    <figure>
+                                        <blockquote className="text-lg italic leading-relaxed">
+                                            &ldquo;{feature.quote}&rdquo;
+                                        </blockquote>
+                                        <figcaption className="mt-6 flex items-center gap-3">
+                                            <img
+                                                src={feature.avatar}
+                                                alt=""
+                                                loading="lazy"
+                                                className="size-12 rounded-full object-cover"
+                                            />
+                                            <span>{feature.byline}</span>
+                                        </figcaption>
+                                    </figure>
+                                </div>
+                                <ul className="space-y-10">
+                                    {feature.items.map((item) => (
+                                        <li
+                                            key={item.title}
+                                            className="flex items-start gap-4"
+                                        >
+                                            <RingIcon name={item.icon} />
+                                            <div>
+                                                <h3 className="font-sans text-2xl font-bold">
+                                                    {item.href ? (
+                                                        <Link
+                                                            href={item.href}
+                                                            className="hover:text-lime"
+                                                        >
+                                                            {item.title}
+                                                        </Link>
+                                                    ) : (
+                                                        item.title
+                                                    )}
+                                                </h3>
+                                                <p className="mt-2 text-lg text-white/65">
+                                                    {item.body}
+                                                </p>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         </Reveal>
                     ))}
                 </Container>
             </section>
 
-            {/* The difference */}
-            <section className="py-20 sm:py-28">
-                <Container className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
-                    <Reveal>
-                        <Eyebrow>Why stewardship</Eyebrow>
-                        <h2 className="mt-3 text-3xl font-semibold leading-tight sm:text-5xl">
-                            The difference is stewardship.
-                        </h2>
-                        <p className="mt-6 text-lg text-muted-foreground">
-                            Poverty, disease and environmental decline share the same roots: unsustainable use of
-                            natural resources, policy gaps, communities left out of decisions, and too little
-                            financing. Treating them one at a time has not worked.
-                        </p>
-                        <p className="mt-4 text-lg text-muted-foreground">
-                            PHDS takes planetary health stewardship as a unifying approach. We bring health,
-                            environment, economy and policy together, with local communities in the lead.
-                        </p>
-                        <div className="mt-8">
-                            <ButtonLink href={routes.about} variant="primary" arrow>
-                                Read our story
-                            </ButtonLink>
-                        </div>
-                    </Reveal>
-                    <Reveal delay={150}>
-                        <div className="relative">
-                            <img
-                                src="/images/beach-landing.jpg"
-                                alt="Fishers and boats on the shore of Lake Victoria"
-                                loading="lazy"
-                                className="aspect-[4/3] w-full rounded-3xl object-cover shadow-xl"
-                            />
-                            <div className="absolute -bottom-6 -left-4 hidden rounded-2xl bg-accent p-5 text-accent-foreground shadow-xl sm:block">
-                                <p className="font-display text-lg font-semibold leading-snug">Lake Victoria Basin</p>
-                                <p className="mt-1 max-w-[16rem] text-sm font-medium">
-                                    Five lakeshore counties in Kenya, one shared lake.
-                                </p>
-                            </div>
-                        </div>
-                    </Reveal>
-                </Container>
-            </section>
-
-            {/* Focus areas */}
-            <section className="bg-muted py-20 sm:py-28">
-                <Container>
-                    <Reveal>
-                        <SectionHeading
-                            eyebrow="Focus areas"
-                            title="Six areas where health, environment and livelihoods meet."
-                            lede="Each one starts with what communities on the lakeshore are living through today."
-                        />
-                    </Reveal>
-                    <div className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                        {focusAreas.map((area, index) => (
-                            <Reveal key={area.slug} delay={(index % 3) * 100}>
-                                <FocusAreaCardView area={area} />
-                            </Reveal>
-                        ))}
-                    </div>
-                </Container>
-            </section>
-
-            {/* Pillars with quote */}
-            <section className="bg-band py-20 text-band-foreground sm:py-28">
-                <Container>
-                    <Reveal>
-                        <blockquote className="mx-auto max-w-4xl text-center">
-                            <p className="font-display text-2xl font-medium leading-snug sm:text-4xl">
-                                &ldquo;{quote}&rdquo;
-                            </p>
-                            <footer className="mt-6 text-sm font-semibold uppercase tracking-widest text-accent">
-                                Our approach
-                            </footer>
-                        </blockquote>
-                    </Reveal>
-                    <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-                        {pillars.map((pillar, index) => (
-                            <Reveal key={pillar.title} delay={index * 100}>
-                                <div className="h-full rounded-3xl border border-white/10 bg-white/5 p-6">
-                                    <Coin name={pillar.icon} />
-                                    <h3 className="mt-5 text-xl font-semibold">{pillar.title}</h3>
-                                    <p className="mt-2 text-sm text-band-muted">{pillar.body}</p>
-                                </div>
-                            </Reveal>
-                        ))}
-                    </div>
-                </Container>
-            </section>
-
-            {/* Field story */}
-            <section className="py-20 sm:py-28">
-                <Container className="grid items-center gap-12 lg:grid-cols-5 lg:gap-16">
-                    <Reveal className="lg:col-span-2">
-                        <img
-                            src="/images/health-outreach.jpg"
-                            alt="A community health promoter speaking with a woman during an outreach at Sori"
-                            loading="lazy"
-                            className="aspect-[4/5] w-full rounded-3xl object-cover shadow-xl"
-                        />
-                    </Reveal>
-                    <Reveal className="lg:col-span-3" delay={120}>
-                        <Eyebrow>{fieldStory.label}</Eyebrow>
-                        <h2 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
-                            She would go for screening if someone minded her stock.
-                        </h2>
-                        <p className="mt-6 text-lg text-muted-foreground">{fieldStory.body}</p>
-                        <p className="mt-4 border-l-4 border-accent pl-5 text-lg font-medium">{fieldStory.lesson}</p>
-                        <div className="mt-8">
-                            <ButtonLink href={routes.focusArea('global-health')} variant="outline" arrow>
-                                Read about global health
-                            </ButtonLink>
-                        </div>
-                    </Reveal>
-                </Container>
-            </section>
-
             {/* Where we work */}
-            <section className="bg-muted py-20 sm:py-28">
+            <section className="py-20 sm:py-28">
                 <Container className="grid gap-12 lg:grid-cols-2 lg:gap-20">
                     <Reveal>
                         <Eyebrow>Where we work</Eyebrow>
-                        <h2 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
-                            Five counties on the shore of Lake Victoria.
+                        <h2 className="mt-3 text-4xl font-medium leading-[1.05] sm:text-5xl">
+                            Five counties on the shore of{' '}
+                            <Hl>Lake Victoria</Hl>.
                         </h2>
-                        <p className="mt-5 text-lg text-muted-foreground">{basin.summary}</p>
+                        <p className="mt-6 text-lg text-muted-foreground">
+                            {basin.summary}
+                        </p>
                         <p className="mt-4 text-muted-foreground">
                             The basin is shared by {basin.countries}.
                         </p>
                         <div className="mt-8">
-                            <ButtonLink href={routes.whereWeWork} variant="primary" arrow>
-                                See the focus counties
+                            <ButtonLink
+                                href={routes.whereWeWork}
+                                variant="primary"
+                                arrow
+                            >
+                                See The Focus Counties
                             </ButtonLink>
                         </div>
                     </Reveal>
@@ -219,25 +398,46 @@ export default function Home({ stats, quote, mission, pillars, fieldStory, count
                 </Container>
             </section>
 
-            {/* Partner CTA */}
-            <section className="bg-accent py-20 text-accent-foreground sm:py-24">
-                <Container className="text-center">
+            {/* Ready to partner */}
+            <section className="bg-ink py-16 text-white sm:py-24">
+                <Container className="grid gap-6 lg:grid-cols-2">
                     <Reveal>
-                        <h2 className="mx-auto max-w-3xl text-3xl font-semibold sm:text-5xl">Ready to partner?</h2>
-                        <p className="mx-auto mt-5 max-w-2xl text-lg font-medium">
-                            Together we can restore the systems that people and wildlife on Lake Victoria depend on.
-                        </p>
-                        <div className="mt-9 flex flex-wrap justify-center gap-3">
+                        <div className="flex h-full flex-col items-start justify-between gap-10 rounded-[2rem] bg-black/60 p-8 sm:p-12">
+                            <div>
+                                <h2 className="text-5xl font-medium leading-tight sm:text-6xl">
+                                    Ready to partner?
+                                </h2>
+                                <p className="mt-6 max-w-md text-xl">
+                                    Together we can restore the systems that
+                                    people and wildlife on Lake Victoria depend
+                                    on.
+                                </p>
+                            </div>
                             <ButtonLink
                                 href={routes.getInvolved}
-                                variant="primary"
-                                className="!bg-[#0c2d42] !text-[#fbf8f1]"
-                                arrow
+                                variant="accent"
                             >
-                                Start a conversation
+                                Start A Conversation
                             </ButtonLink>
-                            <ButtonLink href={routes.contact} variant="outline" className="!border-[#0c2d42] !text-[#0c2d42] hover:!bg-[#0c2d42] hover:!text-[#f4b63f]">
-                                Contact us
+                        </div>
+                    </Reveal>
+                    <Reveal delay={100}>
+                        <div className="flex h-full flex-col items-start justify-between gap-10 rounded-[2rem] bg-lagoon p-8 sm:p-12">
+                            <div>
+                                <h2 className="text-4xl font-medium leading-tight sm:text-5xl">
+                                    {stats[1]?.value} people live in our five
+                                    focus counties.
+                                </h2>
+                                <p className="mt-6 max-w-md text-lg text-white/80">
+                                    See how the lakeshore counties share one
+                                    lake, one catchment and one future.
+                                </p>
+                            </div>
+                            <ButtonLink
+                                href={routes.whereWeWork}
+                                variant="dark"
+                            >
+                                See Where We Work
                             </ButtonLink>
                         </div>
                     </Reveal>
