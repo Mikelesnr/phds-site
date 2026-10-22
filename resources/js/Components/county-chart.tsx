@@ -1,4 +1,4 @@
-import { Reveal } from '@/components/reveal';
+import { Reveal } from '@/Components/reveal';
 import type { County } from '@/types';
 
 /** Share of Lake Victoria's Kenyan shoreline surface held by each focus county. */
@@ -24,7 +24,7 @@ export function CountyChart({ counties }: { counties: County[] }) {
                                 aria-label={`${county.name} holds ${county.share} percent`}
                             >
                                 <div
-                                    className="bar-fill h-full rounded-full bg-linear-to-r from-lake to-accent"
+                                    className="bar-fill h-full rounded-full bg-linear-to-r from-lime to-lime"
                                     style={{
                                         width: `${(county.share / max) * 100}%`,
                                         transitionDelay: `${index * 120}ms`,

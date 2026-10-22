@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ArrowUpRight } from 'lucide-react';
-import { Coin } from '@/components/ui';
+import { Coin } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import type { FocusAreaCard } from '@/types';
 
@@ -24,7 +24,7 @@ export function FocusAreaCardView({ area }: { area: FocusAreaCard }) {
             </div>
             <div className="flex flex-1 flex-col px-6 pb-6 pt-10">
                 <h3 className="text-2xl font-semibold">{area.title}</h3>
-                <p className="mt-1 text-sm font-medium text-lake">{area.hook}</p>
+                <p className="mt-1 text-sm font-medium text-highlight">{area.hook}</p>
                 <p className="mt-3 flex-1 text-muted-foreground">{area.summary}</p>
                 <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold">
                     Explore this area

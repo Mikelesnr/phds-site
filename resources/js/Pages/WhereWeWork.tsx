@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { CountyChart } from '@/components/county-chart';
-import { Reveal } from '@/components/reveal';
-import { ButtonLink, Container, Eyebrow, PageHero } from '@/components/ui';
+import { CountyChart } from '@/Components/county-chart';
+import { Reveal } from '@/Components/reveal';
+import { ButtonLink, Container, Eyebrow, PageHero } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import type { Basin, County, Stat } from '@/types';
 
@@ -26,7 +26,7 @@ export default function WhereWeWork({ basin, counties, stats }: Props) {
                 <Container className="grid gap-12 lg:grid-cols-2 lg:gap-20">
                     <Reveal>
                         <Eyebrow>Focus counties</Eyebrow>
-                        <h2 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
+                        <h2 className="mt-3 text-3xl font-medium leading-tight sm:text-4xl">
                             Homa Bay, Siaya, Kisumu, Migori and Busia.
                         </h2>
                         <p className="mt-5 text-lg text-muted-foreground">
@@ -48,7 +48,7 @@ export default function WhereWeWork({ basin, counties, stats }: Props) {
                         <Reveal key={stat.label} delay={index * 100}>
                             <div className="border-l-2 border-accent pl-5">
                                 <p className="font-display text-5xl font-semibold text-accent">{stat.value}</p>
-                                <h2 className="mt-2 font-sans text-base font-semibold">{stat.label}</h2>
+                                <h2 className="mt-2 font-sans text-base font-medium">{stat.label}</h2>
                                 <p className="mt-1 text-sm text-band-muted">{stat.note}</p>
                             </div>
                         </Reveal>
@@ -59,7 +59,7 @@ export default function WhereWeWork({ basin, counties, stats }: Props) {
             <section className="py-20 text-center sm:py-24">
                 <Container>
                     <Reveal>
-                        <h2 className="mx-auto max-w-2xl text-3xl font-semibold sm:text-4xl">See what we are working on across the shoreline.</h2>
+                        <h2 className="mx-auto max-w-2xl text-3xl font-medium sm:text-4xl">See what we are working on across the shoreline.</h2>
                         <div className="mt-8">
                             <ButtonLink href={routes.whatWeDo} variant="primary" arrow>
                                 Our focus areas

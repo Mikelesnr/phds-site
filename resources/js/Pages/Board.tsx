@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
-import { Reveal } from '@/components/reveal';
-import { ButtonLink, Container, PageHero } from '@/components/ui';
+import { Reveal } from '@/Components/reveal';
+import { ButtonLink, Container, PageHero } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import type { BoardMember } from '@/types';
 
@@ -40,8 +40,8 @@ export default function Board({ board }: { board: BoardMember[] }) {
                                             {initials(member.name)}
                                         </div>
                                         <div>
-                                            <h2 className="text-xl font-semibold">{member.name}</h2>
-                                            <p className="text-sm font-semibold text-lake">{member.position}</p>
+                                            <h2 className="text-xl font-medium">{member.name}</h2>
+                                            <p className="text-sm font-semibold text-highlight">{member.position}</p>
                                         </div>
                                     </div>
                                     <dl className="mt-6 space-y-4 text-sm">

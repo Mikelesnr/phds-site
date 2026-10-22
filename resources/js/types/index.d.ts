@@ -58,7 +58,7 @@ export type FocusArea = {
 export type FieldStory = { label: string; body: string; lesson: string };
 export type Basin = { countries: string; summary: string };
 
-export type SharedProps = {
+type PhdsSharedProps = {
     site: {
         name: string;
         shortName: string;
@@ -77,3 +77,5 @@ export type SharedProps = {
     };
     flash: { success: string | null };
 };
+
+export type SharedProps = PageProps<PhdsSharedProps>;
