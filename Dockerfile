@@ -55,7 +55,6 @@ ENV LOG_CHANNEL=stderr
 COPY . .
 COPY --from=composer_base /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
-COPY --from=frontend /app/bootstrap/ssr ./bootstrap/ssr
 
 RUN mkdir -p bootstrap/cache storage/framework/views storage/framework/sessions storage/framework/cache \
     && chmod -R 775 bootstrap/cache storage \
