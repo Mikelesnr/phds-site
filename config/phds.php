@@ -23,6 +23,39 @@ return [
     'contact_email' => env('PHDS_CONTACT_EMAIL'),
     'contact_location' => env('PHDS_CONTACT_LOCATION', 'Lake Victoria Basin, Kenya'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Seeded accounts
+    |--------------------------------------------------------------------------
+    |
+    | Read by Database\Seeders\UserSeeder. Credentials come from .env so no
+    | password lives in the repository. Always read them through config(), not
+    | env(), so they keep working after `php artisan config:cache`.
+    |
+    */
+
+    'seed' => [
+        'admin' => [
+            'name' => env('SEED_ADMIN_NAME', 'PHDS Admin'),
+            'email' => env('SEED_ADMIN_EMAIL'),
+            'password' => env('SEED_ADMIN_PASSWORD'),
+        ],
+
+        // The two staff accounts share one password.
+        'staff_password' => env('SEED_STAFF_PASSWORD'),
+
+        'staff' => [
+            [
+                'name' => env('SEED_STAFF_1_NAME', 'Achieng Odero'),
+                'email' => env('SEED_STAFF_1_EMAIL', 'achieng.odero@example.org'),
+            ],
+            [
+                'name' => env('SEED_STAFF_2_NAME', 'Kevin Mwangi'),
+                'email' => env('SEED_STAFF_2_EMAIL', 'kevin.mwangi@example.org'),
+            ],
+        ],
+    ],
+
     'vision' => 'A thriving planet for humans and all life forms.',
     'mission' => 'To provide regenerative solutions for the health of the planet, communities and ecosystems through interdisciplinary action.',
 

@@ -243,6 +243,11 @@ export function SiteHeader() {
             active: isActive(routes.whereWeWork),
         },
         {
+            label: 'Blog',
+            href: routes.blogs,
+            active: isActive(routes.blogs),
+        },
+        {
             id: 'help',
             label: 'Get Involved',
             href: routes.getInvolved,
@@ -413,6 +418,12 @@ export function SiteHeader() {
                             className="block border-b border-border py-4 text-lg font-bold"
                         >
                             Where We Work
+                        </Link>
+                        <Link
+                            href={routes.blogs}
+                            className="block border-b border-border py-4 text-lg font-bold"
+                        >
+                            Blog
                         </Link>
                         <div className="pt-4">
                             <ButtonLink

@@ -5,6 +5,7 @@ import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import AdminLayout from '@/Layouts/admin-layout';
 import SiteLayout from '@/Layouts/site-layout';
 
 const appName = 'PHDS';
@@ -24,7 +25,12 @@ createInertiaApp({
             name.startsWith('Profile/') ||
             name === 'Dashboard';
 
-        if (!ownsLayout) {
+        if (name.startsWith('Admin/')) {
+            // Back office pages share one layout in the site's styling.
+            page.default.layout ??= (content: ReactNode) => (
+                <AdminLayout>{content}</AdminLayout>
+            );
+        } else if (!ownsLayout) {
             page.default.layout ??= (content: ReactNode) => (
                 <SiteLayout>{content}</SiteLayout>
             );

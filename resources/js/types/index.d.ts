@@ -3,6 +3,7 @@ export interface User {
     name: string;
     email: string;
     email_verified_at?: string;
+    role: 'admin' | 'staff';
 }
 
 export type PageProps<
@@ -79,3 +80,55 @@ type PhdsSharedProps = {
 };
 
 export type SharedProps = PageProps<PhdsSharedProps>;
+
+export type BlogVideo = {
+    provider: 'youtube' | 'vimeo';
+    embed: string;
+    thumbnail: string | null;
+    url: string;
+};
+
+export type BlogPost = {
+    id: number;
+    slug: string;
+    title: string;
+    excerpt: string;
+    body: string;
+    is_featured: boolean;
+    published_label: string | null;
+    author: string | null;
+    cover: string | null;
+    images: string[];
+    videos: BlogVideo[];
+};
+
+export type PageLink = { url: string | null; label: string; active: boolean };
+
+export type Paginated<T> = {
+    data: T[];
+    links: PageLink[];
+    current_page: number;
+    last_page: number;
+    total: number;
+};
+
+export type AdminBlogRow = {
+    id: number;
+    title: string;
+    is_featured: boolean;
+    status: 'published' | 'draft';
+    published_label: string | null;
+    updated_label: string;
+    author: string | null;
+};
+
+export type AdminBlogForm = {
+    id: number;
+    title: string;
+    excerpt: string;
+    body: string;
+    images: string[];
+    videos: string[];
+    is_featured: boolean;
+    published: boolean;
+};

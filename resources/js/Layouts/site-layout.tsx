@@ -10,7 +10,7 @@ import type { SharedProps } from '@/types';
 
 const BANNER_KEY = 'phds-banner-dismissed';
 
-function FlashToast({ raised }: { raised: boolean }) {
+export function FlashToast({ raised }: { raised: boolean }) {
     const message = usePage<SharedProps>().props.flash.success;
     const [visible, setVisible] = useState(false);
 

@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { BlogGrid } from '@/Components/blog-grid';
 import { CountyChart } from '@/Components/county-chart';
 import { Reveal } from '@/Components/reveal';
 import {
@@ -7,11 +8,13 @@ import {
     Eyebrow,
     Hl,
     RingIcon,
+    SectionHeading,
 } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import type {
     Basin,
+    BlogPost,
     County,
     FieldStory,
     FocusAreaCard,
@@ -28,6 +31,7 @@ type Props = {
     counties: County[];
     basin: Basin;
     focusAreas: FocusAreaCard[];
+    featuredBlogs: BlogPost[];
 };
 
 type FeatureItem = { icon: string; title: string; body: string; href?: string };
@@ -88,6 +92,7 @@ export default function Home({
     counties,
     basin,
     focusAreas,
+    featuredBlogs,
 }: Props) {
     const area = (slug: string): FeatureItem => {
         const found = focusAreas.find((item) => item.slug === slug)!;
@@ -368,6 +373,34 @@ export default function Home({
                     ))}
                 </Container>
             </section>
+
+            {/* Featured blog posts */}
+            {featuredBlogs.length > 0 && (
+                <section className="py-20 sm:py-28">
+                    <Container>
+                        <Reveal className="flex flex-wrap items-end justify-between gap-6">
+                            <SectionHeading
+                                eyebrow="Featured stories"
+                                title={
+                                    <>
+                                        News from the <Hl>lakeshore</Hl>.
+                                    </>
+                                }
+                            />
+                            <ButtonLink
+                                href={routes.blogs}
+                                variant="primary"
+                                arrow
+                            >
+                                View All Blogs
+                            </ButtonLink>
+                        </Reveal>
+                        <div className="mt-12">
+                            <BlogGrid posts={featuredBlogs} />
+                        </div>
+                    </Container>
+                </section>
+            )}
 
             {/* Where we work */}
             <section className="py-20 sm:py-28">
