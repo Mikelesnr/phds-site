@@ -14,6 +14,8 @@ export const routes = {
     adminBlogEdit: (id: number) => `/admin/blogs/${id}/edit`,
     adminBlog: (id: number) => `/admin/blogs/${id}`,
     adminBlogFeatured: (id: number) => `/admin/blogs/${id}/featured`,
+    chat: '/chat',
+    chatNews: '/chat/news',
     contactStore: '/contact',
     subscribeStore: '/subscribe',
 } as const;

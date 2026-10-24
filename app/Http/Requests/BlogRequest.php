@@ -27,7 +27,16 @@ class BlogRequest extends FormRequest
             'excerpt' => ['required', 'string', 'max:300'],
             'body' => ['required', 'string', 'max:20000'],
             'images' => ['nullable', 'array', 'max:10'],
-            'images.*' => ['required', 'string', 'url:https', 'max:2048'],
+            'images.*' => [
+                'required',
+                'string',
+                'max:2048',
+                function (string $attribute, mixed $value, Closure $fail) {
+                    if (! is_string($value) || ! self::isAllowedImage($value)) {
+                        $fail('Use a link starting with https:// or a site picture such as /images/photo.jpg.');
+                    }
+                },
+            ],
             'videos' => ['nullable', 'array', 'max:5'],
             'videos.*' => [
                 'required',
@@ -50,9 +59,22 @@ class BlogRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'images.*.url' => 'Each picture link must start with https://',
             'images.*.required' => 'Remove empty picture rows or paste a link.',
             'videos.*.required' => 'Remove empty video rows or paste a link.',
         ];
+    }
+
+    /**
+     * Pictures hosted elsewhere must be https links. Pictures that ship with
+     * the site (such as the seeded posts) are plain paths like /images/a.jpg.
+     */
+    private static function isAllowedImage(string $value): bool
+    {
+        if (str_starts_with($value, 'https://')) {
+            return filter_var($value, FILTER_VALIDATE_URL) !== false;
+        }
+
+        return preg_match('#^/(?!/)[A-Za-z0-9._~%/-]+$#', $value) === 1
+            && ! str_contains($value, '..');
     }
 }

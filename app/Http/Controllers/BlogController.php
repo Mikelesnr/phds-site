@@ -46,6 +46,7 @@ class BlogController extends Controller
                 'published_label' => $blog->published_at?->format('j M Y'),
                 'updated_label' => $blog->updated_at->format('j M Y'),
                 'author' => $blog->author?->name,
+                'author_id' => $blog->user_id,
             ]);
 
         return Inertia::render('Admin/Blogs/Index', [
