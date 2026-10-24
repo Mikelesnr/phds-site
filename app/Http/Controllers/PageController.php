@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Blog;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,7 @@ class PageController extends Controller
             'counties' => config('phds.counties'),
             'basin' => config('phds.basin'),
             'focusAreas' => $this->focusAreaCards(),
+            'featuredBlogs' => Blog::featuredForHome(),
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
             'laravelVersion' => Application::VERSION,

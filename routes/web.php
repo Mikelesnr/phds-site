@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
+use App\Http\Controllers\BlogController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\PageController;
 use Illuminate\Support\Facades\Route;
@@ -19,10 +21,27 @@ Route::controller(PageController::class)->group(function () {
     Route::get('/contact', 'contact')->name('contact');
 });
 
+Route::get('/blogs', [BlogController::class, 'index'])->name('blogs.index');
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Back office. Staff type this address; it is not linked from the public site.
+Route::middleware('auth')
+    ->prefix('admin/blogs')
+    ->name('admin.blogs.')
+    ->controller(BlogController::class)
+    ->group(function () {
+        Route::get('/', 'manage')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{blog}/edit', 'edit')->name('edit');
+        Route::put('/{blog}', 'update')->name('update');
+        Route::patch('/{blog}/featured', 'toggleFeatured')->name('featured');
+        Route::delete('/{blog}', 'destroy')->name('destroy');
+    });
+
+
+Route::get('/dashboard', DashboardController::class)
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('throttle:6,1')->group(function () {
     Route::post('/contact', [InquiryController::class, 'contact'])->name('contact.store');

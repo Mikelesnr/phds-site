@@ -36,6 +36,7 @@ export function SiteFooter() {
                             <li><Link className={linkClass} href={routes.about}>Our Story</Link></li>
                             <li><Link className={linkClass} href={routes.whereWeWork}>Where We Work</Link></li>
                             <li><Link className={linkClass} href={routes.board}>Board</Link></li>
+                            <li><Link className={linkClass} href={routes.blogs}>Blog</Link></li>
                         </ul>
                     </nav>
                     <nav aria-label="Focus areas">
