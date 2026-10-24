@@ -1,10 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Pagination } from '@/Components/pagination';
 import { ButtonLink, Container } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
-import type { AdminBlogRow, Paginated } from '@/types';
+import type { AdminBlogRow, Paginated, SharedProps } from '@/types';
 
 type Props = {
     posts: Paginated<AdminBlogRow>;
@@ -12,6 +12,14 @@ type Props = {
 };
 
 export default function Index({ posts, canManageFeatured }: Props) {
+    const { user } = usePage<SharedProps>().props.auth;
+
+    // Least privilege: staff only see and edit their own posts, admins see all.
+    const isAdmin = user.role === 'admin';
+    const visible = isAdmin
+        ? posts.data
+        : posts.data.filter((post) => post.author_id === user.id);
+
     const toggleFeatured = (post: AdminBlogRow) =>
         router.patch(routes.adminBlogFeatured(post.id), {}, { preserveScroll: true });
 
@@ -32,7 +40,7 @@ export default function Index({ posts, canManageFeatured }: Props) {
                         <p className="mt-2 text-muted-foreground">
                             {canManageFeatured
                                 ? 'Choose which published posts are featured on the home page.'
-                                : 'Write and edit posts. Only administrators can change what is featured.'}
+                                : 'Write and edit your own posts. Only administrators can change what is featured.'}
                         </p>
                     </div>
                     <ButtonLink href={routes.adminBlogCreate} variant="accent">
@@ -40,13 +48,15 @@ export default function Index({ posts, canManageFeatured }: Props) {
                     </ButtonLink>
                 </div>
 
-                {posts.data.length === 0 ? (
+                {visible.length === 0 ? (
                     <p className="mt-10 rounded-3xl border border-border bg-card p-10 text-center text-muted-foreground">
-                        No posts yet. Create the first one.
+                        {isAdmin
+                            ? 'No posts yet. Create the first one.'
+                            : 'You have no posts on this page. Create one, or check the other pages.'}
                     </p>
                 ) : (
                     <ul className="mt-10 divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
-                        {posts.data.map((post) => (
+                        {visible.map((post) => (
                             <li
                                 key={post.id}
                                 className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"

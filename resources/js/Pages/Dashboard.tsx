@@ -12,6 +12,7 @@ type Props = {
 
 export default function Dashboard({ counts, featured, homeLimit }: Props) {
     const user = usePage().props.auth.user;
+    const isAdmin = user.role === 'admin';
 
     const stats = [
         { label: 'Published posts', value: counts.published },
@@ -60,10 +61,11 @@ export default function Dashboard({ counts, featured, homeLimit }: Props) {
                             <p className="mt-1 text-muted-foreground">
                                 The home page shows up to {homeLimit} featured
                                 posts, newest first.
+                                {!isAdmin && ' Only administrators choose these.'}
                             </p>
                         </div>
                         <ButtonLink href={routes.adminBlogs} variant="accent">
-                            Choose featured posts
+                            {isAdmin ? 'Choose featured posts' : 'Manage my posts'}
                         </ButtonLink>
                     </div>
 
@@ -78,12 +80,16 @@ export default function Dashboard({ counts, featured, homeLimit }: Props) {
                                     key={post.id}
                                     className="flex items-center justify-between gap-4 py-3"
                                 >
-                                    <Link
-                                        href={`${routes.adminBlogs}/${post.id}/edit`}
-                                        className="font-bold hover:text-highlight"
-                                    >
-                                        {post.title}
-                                    </Link>
+                                    {isAdmin ? (
+                                        <Link
+                                            href={`${routes.adminBlogs}/${post.id}/edit`}
+                                            className="font-bold hover:text-highlight"
+                                        >
+                                            {post.title}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-bold">{post.title}</span>
+                                    )}
                                     {!post.published && (
                                         <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                                             Not published yet

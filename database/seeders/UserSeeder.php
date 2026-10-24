@@ -5,14 +5,19 @@ namespace Database\Seeders;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 
 /**
  * Creates one administrator and two staff users.
  *
  * Names, emails and passwords come from config/phds.php, which reads them from
- * .env. Safe to run more than once: users are matched by email, and the
- * password of an existing user is never overwritten.
+ * .env. The .env file is the source of truth for these accounts: running the
+ * seeder again creates missing users and resets name, role and password to
+ * match .env. Nobody is duplicated, users are matched by email.
+ *
+ * If .env was edited and nothing changes, run `php artisan config:clear`
+ * first, a cached config keeps the old values.
  */
 class UserSeeder extends Seeder
 {
@@ -47,15 +52,24 @@ class UserSeeder extends Seeder
 
     private function seedUser(string $name, string $email, string $password, UserRole $role): void
     {
-        $user = User::firstOrNew(['email' => strtolower($email)]);
+        $email = strtolower(trim($email));
+        $password = trim($password);
 
-        if (! $user->exists) {
-            // The model casts the password to a hash, so the plain value is passed.
-            $user->password = $password;
-            $user->email_verified_at = now();
-        }
+        $user = User::firstOrNew(['email' => $email]);
+        $created = ! $user->exists;
+
+        // The model casts the password to a hash, so the plain value is passed.
+        $user->password = $password;
+        $user->email_verified_at ??= now();
 
         // Role is not mass assignable, the enum guards it.
-        $user->forceFill(['name' => $name, 'role' => $role])->save();
+        $user->forceFill(['name' => trim($name), 'role' => $role])->save();
+
+        // Prove the stored hash really matches the .env password.
+        if (! Hash::check($password, $user->fresh()->password)) {
+            throw new RuntimeException("The saved password for {$email} does not match .env.");
+        }
+
+        $this->command?->info(($created ? 'Created ' : 'Updated ').$role->value." {$email}");
     }
 }

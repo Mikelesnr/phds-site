@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\PageController;
@@ -55,3 +56,8 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+
+Route::middleware('throttle:'.config('chatbot.per_minute_limit').',1')->prefix('chat')->name('chat.')->group(function () {
+    Route::post('/', [ChatbotController::class, 'ask'])->name('ask');
+    Route::get('/news', [ChatbotController::class, 'news'])->name('news');
+});

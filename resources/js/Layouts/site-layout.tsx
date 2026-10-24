@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import { CheckCircle2, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
+import { ChatWidget } from '@/Components/chat-widget';
 import { SiteFooter } from '@/Components/site-footer';
 import { SiteHeader } from '@/Components/site-header';
 import { ButtonLink } from '@/Components/ui';
@@ -116,6 +117,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
             </main>
             <SiteFooter />
             {bannerVisible && <PartnerBanner onDismiss={dismissBanner} />}
+            <ChatWidget raised={bannerVisible} />
             <FlashToast raised={bannerVisible} />
         </div>
     );

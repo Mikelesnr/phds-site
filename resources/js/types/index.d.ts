@@ -120,6 +120,7 @@ export type AdminBlogRow = {
     published_label: string | null;
     updated_label: string;
     author: string | null;
+    author_id: number | null;
 };
 
 export type AdminBlogForm = {

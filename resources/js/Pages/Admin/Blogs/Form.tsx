@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Plus, Trash2, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Container } from '@/Components/ui';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
@@ -81,7 +81,7 @@ function LinkList({
                     return (
                         <li key={index}>
                             <div className="flex items-start gap-3">
-                                {kind === 'image' && value.startsWith('https://') && (
+                                {kind === 'image' && (value.startsWith('https://') || value.startsWith('/')) && (
                                     <img
                                         src={value}
                                         alt=""
@@ -167,6 +167,16 @@ export default function Form({ blog, canManageFeatured }: Props) {
         is_featured: blog?.is_featured ?? false,
     });
     const errors = form.errors as Record<string, string | undefined>;
+    const errorMessages = Object.values(errors).filter(Boolean) as string[];
+    const summaryRef = useRef<HTMLDivElement>(null);
+
+    // A failed save must never be silent: bring the problem into view.
+    useEffect(() => {
+        if (errorMessages.length > 0) {
+            summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [errorMessages.length]);
 
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -206,6 +216,23 @@ export default function Form({ blog, canManageFeatured }: Props) {
                 <h1 className="mt-3 text-4xl font-medium">
                     {blog ? 'Edit post' : 'New post'}
                 </h1>
+
+                {errorMessages.length > 0 && (
+                    <div
+                        ref={summaryRef}
+                        role="alert"
+                        className="mt-6 rounded-2xl border border-red-500/50 bg-red-500/10 p-5"
+                    >
+                        <p className="font-bold text-red-700 dark:text-red-300">
+                            The post was not saved. Please fix the following:
+                        </p>
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700 dark:text-red-300">
+                            {errorMessages.map((message, index) => (
+                                <li key={index}>{message}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 <form onSubmit={submit} noValidate className="mt-8 space-y-8">
                     <Field label="Title" htmlFor="title" error={errors.title}>
@@ -254,7 +281,7 @@ export default function Form({ blog, canManageFeatured }: Props) {
 
                     <LinkList
                         legend="Pictures"
-                        hint="Links to pictures hosted elsewhere. They must start with https://. The first one is the card picture."
+                        hint="Links to pictures hosted elsewhere must start with https://. Pictures that ship with the site look like /images/photo.jpg. The first one is the card picture."
                         values={form.data.images}
                         max={10}
                         placeholder="https://example.org/picture.jpg"
@@ -278,6 +305,11 @@ export default function Form({ blog, canManageFeatured }: Props) {
                         errors={errors}
                         onChange={(values) => form.setData('videos', values)}
                     />
+                    {errors.videos && (
+                        <p className="-mt-6 text-sm font-medium text-red-600 dark:text-red-400">
+                            {errors.videos}
+                        </p>
+                    )}
 
                     <div className="space-y-4 rounded-3xl border border-border bg-card p-6">
                         <label className="flex cursor-pointer items-start gap-3">
