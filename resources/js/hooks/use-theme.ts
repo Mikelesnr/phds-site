@@ -19,7 +19,11 @@ export function useTheme() {
     const [theme, setTheme] = useState<Theme>('light');
 
     useEffect(() => {
-        setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        setTheme(
+            document.documentElement.classList.contains('dark')
+                ? 'dark'
+                : 'light',
+        );
 
         const query = window.matchMedia('(prefers-color-scheme: dark)');
         const onSystemChange = (event: MediaQueryListEvent) => {
@@ -38,7 +42,9 @@ export function useTheme() {
     }, []);
 
     const toggle = useCallback(() => {
-        const next: Theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+        const next: Theme = document.documentElement.classList.contains('dark')
+            ? 'light'
+            : 'dark';
         applyTheme(next);
         setTheme(next);
         try {

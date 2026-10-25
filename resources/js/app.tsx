@@ -25,7 +25,7 @@ createInertiaApp({
             name.startsWith('Profile/') ||
             name === 'Dashboard';
 
-        if (name.startsWith('Admin/')) {
+        if (name.startsWith('Admin/') || name.startsWith('Chat/')) {
             // Back office pages share one layout in the site's styling.
             page.default.layout ??= (content: ReactNode) => (
                 <AdminLayout>{content}</AdminLayout>

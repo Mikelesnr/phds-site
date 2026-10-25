@@ -56,6 +56,14 @@ class HandleInertiaRequests extends Middleware
                     ->all(),
             ],
 
+            // Chat badge and websocket settings, only for signed-in people.
+            'team' => fn () => $request->user()
+                ? ['unreadMessages' => app(\App\Services\Chat\ChatPresenter::class)->unreadTotal($request->user())]
+                : null,
+            'realtime' => fn () => $request->user()
+                ? array_merge(config('chat.client'), ['pollSeconds' => config('chat.poll_seconds')])
+                : null,
+
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
             ],
