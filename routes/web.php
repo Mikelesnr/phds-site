@@ -3,7 +3,11 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\TeamChatController;
+use App\Http\Controllers\TeamMessageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\PageController;
@@ -61,3 +65,52 @@ Route::middleware('throttle:'.config('chatbot.per_minute_limit').',1')->prefix('
     Route::post('/', [ChatbotController::class, 'ask'])->name('ask');
     Route::get('/news', [ChatbotController::class, 'news'])->name('news');
 });
+
+// Back office: user management. Administrators only, enforced by UserPolicy.
+Route::middleware('auth')
+    ->prefix('admin/users')
+    ->name('admin.users.')
+    ->controller(UserController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{user}/edit', 'edit')->name('edit');
+        Route::put('/{user}', 'update')->name('update');
+        Route::delete('/{user}', 'destroy')->name('destroy');
+    });
+
+// Team chat: direct messages, open groups and private groups.
+Route::middleware('auth')
+    ->prefix('team-chat')
+    ->name('team.chat.')
+    ->group(function () {
+        Route::get('/', [TeamChatController::class, 'index'])->name('index');
+        Route::post('/direct', [TeamChatController::class, 'storeDirect'])->name('direct');
+        Route::post('/groups', [TeamChatController::class, 'storeGroup'])->name('groups.store');
+
+        Route::get('/{conversation}', [TeamChatController::class, 'show'])->name('show');
+        Route::patch('/{conversation}', [TeamChatController::class, 'updateGroup'])->name('update');
+        Route::delete('/{conversation}', [TeamChatController::class, 'destroyGroup'])->name('destroy');
+        Route::post('/{conversation}/join', [TeamChatController::class, 'join'])->name('join');
+        Route::post('/{conversation}/leave', [TeamChatController::class, 'leave'])->name('leave');
+        Route::post('/{conversation}/members', [TeamChatController::class, 'addMembers'])->name('members.add');
+        Route::delete('/{conversation}/members/{user}', [TeamChatController::class, 'removeMember'])->name('members.remove');
+        Route::post('/{conversation}/read', [TeamChatController::class, 'markRead'])->name('read');
+
+        Route::middleware('throttle:90,1')->group(function () {
+            Route::post('/{conversation}/messages', [TeamMessageController::class, 'store'])->name('messages.store');
+            Route::patch('/messages/{message}', [TeamMessageController::class, 'update'])->name('messages.update');
+            Route::delete('/messages/{message}', [TeamMessageController::class, 'destroy'])->name('messages.destroy');
+        });
+    });
+
+// The bell. Always your own notifications.
+Route::middleware('auth')
+    ->prefix('notifications')
+    ->name('notifications.')
+    ->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::post('/read-all', [NotificationController::class, 'readAll'])->name('read-all');
+        Route::post('/{id}/read', [NotificationController::class, 'read'])->name('read');
+    });

@@ -134,7 +134,9 @@ class BlogController extends Controller
     {
         $this->verify($request, UserRole::Admin);
 
-        $blog->update(['is_featured' => ! $blog->is_featured]);
+        // is_featured is not mass assignable, so set it directly.
+        $blog->is_featured = ! $blog->is_featured;
+        $blog->save();
 
         return back()->with(
             'success',

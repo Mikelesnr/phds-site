@@ -77,6 +77,8 @@ type PhdsSharedProps = {
         }>;
     };
     flash: { success: string | null };
+    team: { unreadMessages: number } | null;
+    realtime: RealtimeConfig | null;
 };
 
 export type SharedProps = PageProps<PhdsSharedProps>;
@@ -132,4 +134,77 @@ export type AdminBlogForm = {
     videos: string[];
     is_featured: boolean;
     published: boolean;
+};
+
+export type RealtimeConfig = {
+    enabled: boolean;
+    key: string | null;
+    host: string | null;
+    port: number;
+    scheme: string;
+    pollSeconds: number;
+};
+
+export type ChatMessage = {
+    id: number;
+    conversation_id: number;
+    user_id: number | null;
+    author: string;
+    body: string | null;
+    deleted: boolean;
+    edited: boolean;
+    created_at: string;
+};
+
+export type ChatMember = { id: number; name: string; moderator: boolean };
+
+export type ChatConversation = {
+    id: number;
+    type: 'direct' | 'group';
+    visibility: 'open' | 'private';
+    title: string;
+    description: string | null;
+    is_moderator: boolean;
+    can_leave: boolean;
+    members: ChatMember[];
+    messages: ChatMessage[];
+};
+
+export type SidebarItem = {
+    id: number;
+    type: 'direct' | 'group';
+    visibility: 'open' | 'private';
+    title: string;
+    preview: string | null;
+    last_at: string | null;
+    unread: number;
+};
+
+export type ChatSidebar = { direct: SidebarItem[]; groups: SidebarItem[] };
+export type ChatPerson = { id: number; name: string; role: string };
+export type JoinableGroup = { id: number; name: string; description: string | null; members: number };
+
+export type NotificationItem = {
+    id: string;
+    read: boolean;
+    created_at: string | null;
+    data: {
+        kind: 'message' | 'added' | 'removed';
+        conversation_id: number;
+        title: string;
+        sender: string | null;
+        preview: string;
+        count: number;
+        url: string | null;
+    };
+};
+
+export type AdminUserRow = {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    blogs_count: number;
+    created_at: string;
+    is_me: boolean;
 };

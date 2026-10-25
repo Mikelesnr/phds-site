@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { NotificationBell } from '@/Components/chat/notification-bell';
 import { LogoMark } from '@/Components/logo';
 import { ThemeToggle } from '@/Components/theme-toggle';
 import { FlashToast } from '@/Layouts/site-layout';
@@ -30,6 +31,29 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </Link>
     );
 
+    const unreadMessages = rest.team?.unreadMessages ?? 0;
+    const chatActive = url.startsWith(routes.teamChat);
+    const chatLink = (
+        <Link
+            href={routes.teamChat}
+            aria-current={chatActive ? 'page' : undefined}
+            className={cn(
+                'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-base font-bold transition hover:bg-muted',
+                chatActive && 'bg-muted text-highlight',
+            )}
+        >
+            Chat
+            {unreadMessages > 0 && (
+                <span
+                    data-testid="chat-badge"
+                    className="inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-accent-foreground"
+                >
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                </span>
+            )}
+        </Link>
+    );
+
     return (
         <div className="flex min-h-screen flex-col bg-background text-foreground">
             <header className="border-b border-border bg-nav">
@@ -47,6 +71,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         <nav aria-label="Back office" className="flex gap-1">
                             {link('/dashboard', 'Dashboard', url.startsWith('/dashboard'))}
                             {link(routes.adminBlogs, 'Blogs', url.startsWith(routes.adminBlogs))}
+                            {chatLink}
+                            {auth.user.role === 'admin' &&
+                                link(routes.adminUsers, 'Users', url.startsWith(routes.adminUsers))}
                         </nav>
                     </div>
 
@@ -57,6 +84,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                 ({roleLabels[auth.user.role] ?? auth.user.role})
                             </span>
                         </span>
+                        <NotificationBell />
                         <ThemeToggle />
                         <Link
                             href="/logout"

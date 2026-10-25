@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Blog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -149,6 +150,8 @@ class ChatbotTest extends TestCase
 
     public function test_gemini_errors_return_a_friendly_message(): void
     {
+        // Start from a clean factory: stubs registered in setUp() would match first.
+        Http::swap(new Factory);
         Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['error' => 'boom'], 500)]);
 
         $this->postJson('/chat', ['message' => 'What does PHDS do?'])
