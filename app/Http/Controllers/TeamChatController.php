@@ -68,6 +68,10 @@ class TeamChatController extends Controller
 
         $creator = $request->user();
 
+        if ($data['visibility'] === ConversationVisibility::Open->value) {
+            $this->ensureNoOpenGroupNamed($data['name']);
+        }
+
         $conversation = DB::transaction(function () use ($data, $creator) {
             $conversation = new Conversation;
             $conversation->type = ConversationType::Group;
@@ -108,6 +112,10 @@ class TeamChatController extends Controller
             'name' => ['required', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:300'],
         ]);
+
+        if ($conversation->isOpen()) {
+            $this->ensureNoOpenGroupNamed($data['name'], ignore: $conversation);
+        }
 
         $conversation->fill(['name' => trim($data['name']), 'description' => $data['description'] ?? null])->save();
 
@@ -231,6 +239,28 @@ class TeamChatController extends Controller
             'people' => $this->chat->people($user),
             'joinable' => $this->chat->joinableGroups($user),
         ]);
+    }
+
+    /**
+     * Open groups are for everyone to join, so two of them with the same name is
+     * only ever a mistake. Point people at the existing one instead of making a copy.
+     */
+    private function ensureNoOpenGroupNamed(string $name, ?Conversation $ignore = null): void
+    {
+        $name = trim($name);
+
+        $exists = Conversation::query()
+            ->where('type', ConversationType::Group->value)
+            ->where('visibility', ConversationVisibility::Open->value)
+            ->whereRaw('lower(name) = ?', [mb_strtolower($name)])
+            ->when($ignore, fn ($q) => $q->whereKeyNot($ignore->id))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'name' => "An open group called \"{$name}\" already exists. Join it from the Open groups list instead of creating a copy.",
+            ]);
+        }
     }
 
     /** A chat you are not in does not exist as far as you are concerned. */

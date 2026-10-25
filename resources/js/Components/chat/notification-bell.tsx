@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Bell, CheckCheck } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getEcho } from '@/lib/echo';
+import { playSound } from '@/lib/sound';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import type { NotificationItem, SharedProps } from '@/types';
@@ -25,13 +26,34 @@ export function NotificationBell() {
     const [unread, setUnread] = useState(0);
     const [items, setItems] = useState<NotificationItem[]>([]);
     const wrapper = useRef<HTMLDivElement>(null);
+    // What we had already seen, so only genuinely new notifications make a sound.
+    const seen = useRef<Map<string, string | null> | null>(null);
 
-    const load = useCallback(() => {
+    /** True when this conversation is the one on screen, where the chat plays its own sound. */
+    const isOpenConversation = (conversationId: number) =>
+        !document.hidden && window.location.pathname === `${routes.teamChat}/${conversationId}`;
+
+    const load = useCallback((announce = false) => {
         axios
             .get<{ unread: number; items: NotificationItem[] }>(routes.notifications)
             .then(({ data }) => {
                 setUnread(data.unread);
                 setItems(data.items);
+
+                const previous = seen.current;
+                seen.current = new Map(data.items.map((item) => [item.id, item.created_at]));
+
+                // First load is the baseline. After that, a new or updated unread item is news.
+                if (announce && previous) {
+                    const fresh = data.items.filter(
+                        (item) =>
+                            !item.read &&
+                            item.data.kind !== 'removed' &&
+                            previous.get(item.id) !== item.created_at &&
+                            !isOpenConversation(item.data.conversation_id),
+                    );
+                    if (fresh.length > 0) playSound('notify');
+                }
             })
             .catch(() => undefined);
     }, []);
@@ -48,10 +70,12 @@ export function NotificationBell() {
             channel.listen(
                 '.notification.created',
                 (event: { notification: NotificationItem }) => {
+                    const { kind, conversation_id } = event.notification.data;
                     setItems((current) => [
                         event.notification,
                         ...current.filter((item) => item.id !== event.notification.id),
                     ]);
+                    if (kind !== 'removed' && !isOpenConversation(conversation_id)) playSound('notify');
                     load();
                 },
             );
@@ -60,9 +84,7 @@ export function NotificationBell() {
             };
         }
 
-        const timer = window.setInterval(() => {
-            if (!document.hidden) load();
-        }, (realtime?.pollSeconds ?? 6) * 1000);
+        const timer = window.setInterval(() => load(true), (realtime?.pollSeconds ?? 6) * 1000);
         return () => window.clearInterval(timer);
     }, [realtime, auth.user.id, load]);
 

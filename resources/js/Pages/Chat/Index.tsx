@@ -3,24 +3,25 @@ import axios from 'axios';
 import {
     ArrowLeft,
     Globe,
-    Info,
     Lock,
     MessageSquarePlus,
-    Search,
     Send,
+    Settings,
     Users,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     Avatar,
     BrowseGroupsDialog,
-    GroupInfoDialog,
+    GroupAdminDialog,
+    GroupMembersDialog,
     NewDirectDialog,
     NewGroupDialog,
 } from '@/Components/chat/dialogs';
 import { MessageBubble } from '@/Components/chat/message-bubble';
 import { getEcho, socketHeaders } from '@/lib/echo';
 import { routes } from '@/lib/routes';
+import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 import type {
     ChatConversation,
@@ -39,7 +40,7 @@ type Props = {
     joinable: JoinableGroup[];
 };
 
-type Dialog = 'direct' | 'group' | 'browse' | 'info' | null;
+type Dialog = 'direct' | 'group' | 'browse' | 'admin' | 'members' | null;
 
 function dayLabel(iso: string): string {
     const date = new Date(iso);
@@ -121,10 +122,26 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
     const stickToBottom = useRef(true);
     const conversationId = conversation?.id ?? null;
 
+    const messagesRef = useRef(messages);
+    messagesRef.current = messages;
+    const lastConversationId = useRef(conversationId);
+
     // The server sends every message in the conversation. Whenever it sends them again, adopt them.
     useEffect(() => {
-        setMessages(conversation?.messages ?? []);
+        const incoming = conversation?.messages ?? [];
+
+        // Same conversation, and a message from someone else we have not shown yet: that is news.
+        if (lastConversationId.current === conversationId) {
+            const known = new Set(messagesRef.current.map((m) => m.id));
+            if (incoming.some((m) => !known.has(m.id) && m.user_id !== me.id && !m.deleted)) {
+                playSound(document.hidden ? 'notify' : 'message');
+            }
+        }
+        lastConversationId.current = conversationId;
+
+        setMessages(incoming);
         stickToBottom.current = true;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conversation]);
 
     // Fill exactly the space under the header, whatever height it has on this screen.
@@ -171,6 +188,7 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
             const channel = echo.private(channelName);
             channel
                 .listen('.message.created', ({ message }: { message: ChatMessage }) => {
+                    if (message.user_id !== me.id) playSound(document.hidden ? 'notify' : 'message');
                     setMessages((current) =>
                         current.some((m) => m.id === message.id) ? current : [...current, message],
                     );
@@ -288,18 +306,6 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                         <div className="flex items-center gap-1">
                             <button
                                 type="button"
-                                onClick={() => setDialog('browse')}
-                                aria-label="Browse open groups"
-                                title="Browse open groups"
-                                className="relative inline-flex size-10 items-center justify-center rounded-full hover:bg-muted"
-                            >
-                                <Search className="size-5" aria-hidden="true" />
-                                {joinable.length > 0 && (
-                                    <span className="absolute right-1 top-1 size-2 rounded-full bg-highlight" aria-hidden="true" />
-                                )}
-                            </button>
-                            <button
-                                type="button"
                                 onClick={() => setDialog('group')}
                                 aria-label="New group"
                                 title="New group"
@@ -333,6 +339,46 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                                 <ConversationRow key={item.id} item={item} active={item.id === conversationId} />
                             ))}
                         </ul>
+
+                        {joinable.length > 0 && (
+                            <>
+                                <h2 className="px-3 pb-1 pt-5 font-sans text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                                    Open groups to join
+                                </h2>
+                                <ul data-testid="open-groups">
+                                    {joinable.slice(0, 4).map((group) => (
+                                        <li key={group.id} className="flex items-center gap-3 rounded-xl px-3 py-2">
+                                            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-dashed border-highlight text-highlight">
+                                                <Globe className="size-4" aria-hidden="true" />
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate font-medium">{group.name}</span>
+                                                <span className="block text-xs text-muted-foreground">
+                                                    {group.members} {group.members === 1 ? 'member' : 'members'}
+                                                </span>
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => router.post(`${routes.teamChat}/${group.id}/join`)}
+                                                aria-label={`Join ${group.name}`}
+                                                className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-bold text-accent-foreground"
+                                            >
+                                                Join
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                                {joinable.length > 4 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setDialog('browse')}
+                                        className="mt-1 px-3 py-1 text-sm font-bold text-highlight hover:underline"
+                                    >
+                                        See all {joinable.length} open groups
+                                    </button>
+                                )}
+                            </>
+                        )}
 
                         <h2 className="px-3 pb-1 pt-5 font-sans text-xs font-bold uppercase tracking-wide text-muted-foreground">
                             Direct messages
@@ -387,16 +433,28 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                                             : 'Direct message'}
                                     </p>
                                 </div>
-                                {isGroup && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setDialog('info')}
-                                        aria-label="Group info"
-                                        className="inline-flex size-10 items-center justify-center rounded-full hover:bg-muted"
-                                    >
-                                        <Info className="size-5" aria-hidden="true" />
-                                    </button>
-                                )}
+                                {isGroup &&
+                                    (conversation.is_moderator ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDialog('admin')}
+                                            aria-label="Group admin"
+                                            title="Group admin"
+                                            className="inline-flex size-10 items-center justify-center rounded-full hover:bg-muted"
+                                        >
+                                            <Settings className="size-5" aria-hidden="true" />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDialog('members')}
+                                            aria-label="Group members"
+                                            title="Group members"
+                                            className="inline-flex size-10 items-center justify-center rounded-full hover:bg-muted"
+                                        >
+                                            <Users className="size-5" aria-hidden="true" />
+                                        </button>
+                                    ))}
                             </header>
 
                             <div
@@ -482,6 +540,12 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                             <p className="max-w-sm text-muted-foreground">
                                 Pick a conversation, message someone directly, or start a group for a project.
                             </p>
+                            {joinable.length > 0 && (
+                                <p className="max-w-sm text-sm text-muted-foreground">
+                                    {joinable.length === 1 ? 'There is 1 open group' : `There are ${joinable.length} open groups`}{' '}
+                                    you can join. Find {joinable.length === 1 ? 'it' : 'them'} under Open groups to join on the left.
+                                </p>
+                            )}
                             <div className="flex flex-wrap justify-center gap-3">
                                 <button
                                     type="button"
@@ -506,8 +570,11 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
             {dialog === 'direct' && <NewDirectDialog people={people} onClose={() => setDialog(null)} />}
             {dialog === 'group' && <NewGroupDialog people={people} onClose={() => setDialog(null)} />}
             {dialog === 'browse' && <BrowseGroupsDialog groups={joinable} onClose={() => setDialog(null)} />}
-            {dialog === 'info' && conversation && (
-                <GroupInfoDialog conversation={conversation} people={people} onClose={() => setDialog(null)} />
+            {dialog === 'admin' && conversation?.is_moderator && (
+                <GroupAdminDialog conversation={conversation} people={people} onClose={() => setDialog(null)} />
+            )}
+            {dialog === 'members' && conversation && !conversation.is_moderator && (
+                <GroupMembersDialog conversation={conversation} onClose={() => setDialog(null)} />
             )}
         </>
     );

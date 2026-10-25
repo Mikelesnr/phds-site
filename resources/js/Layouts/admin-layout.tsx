@@ -1,10 +1,12 @@
 import { Link, usePage } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { NotificationBell } from '@/Components/chat/notification-bell';
+import { SoundToggle } from '@/Components/chat/sound-toggle';
 import { LogoMark } from '@/Components/logo';
 import { ThemeToggle } from '@/Components/theme-toggle';
 import { FlashToast } from '@/Layouts/site-layout';
 import { routes } from '@/lib/routes';
+import { unlockSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -30,6 +32,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             {label}
         </Link>
     );
+
+    // Browsers keep audio locked until the person clicks or presses a key once.
+    useEffect(() => {
+        window.addEventListener('pointerdown', unlockSound, { once: true });
+        window.addEventListener('keydown', unlockSound, { once: true });
+        return () => {
+            window.removeEventListener('pointerdown', unlockSound);
+            window.removeEventListener('keydown', unlockSound);
+        };
+    }, []);
 
     const unreadMessages = rest.team?.unreadMessages ?? 0;
     const chatActive = url.startsWith(routes.teamChat);
@@ -84,6 +96,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                 ({roleLabels[auth.user.role] ?? auth.user.role})
                             </span>
                         </span>
+                        <SoundToggle />
                         <NotificationBell />
                         <ThemeToggle />
                         <Link

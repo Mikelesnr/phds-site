@@ -174,6 +174,58 @@ class TeamChatTest extends TestCase
         $this->assertFalse($private->hasMember($joiner));
     }
 
+    public function test_a_second_open_group_with_the_same_name_is_refused(): void
+    {
+        [$first, $second] = User::factory()->count(2)->create();
+        $this->group($first, open: true, name: 'Everyone welcome');
+
+        foreach (['Everyone welcome', '  everyone WELCOME  '] as $name) {
+            $this->actingAs($second)->post('/team-chat/groups', ['name' => $name, 'visibility' => 'open'])
+                ->assertSessionHasErrors('name');
+        }
+
+        $this->assertSame(1, Conversation::count());
+    }
+
+    public function test_private_groups_may_share_a_name_with_anything(): void
+    {
+        [$first, $second] = User::factory()->count(2)->create();
+        $this->group($first, open: true, name: 'Lake team');
+
+        $this->actingAs($second)->post('/team-chat/groups', ['name' => 'Lake team', 'visibility' => 'private'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($second)->post('/team-chat/groups', ['name' => 'Lake team', 'visibility' => 'private'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(3, Conversation::count());
+    }
+
+    public function test_renaming_an_open_group_cannot_collide_with_another_but_can_keep_its_own_name(): void
+    {
+        [$a, $b] = User::factory()->count(2)->create();
+        $one = $this->group($a, open: true, name: 'Alpha');
+        $this->group($b, open: true, name: 'Beta');
+
+        $this->actingAs($a)->patch("/team-chat/{$one->id}", ['name' => 'beta'])->assertSessionHasErrors('name');
+        $this->actingAs($a)->patch("/team-chat/{$one->id}", ['name' => 'Alpha', 'description' => 'New text'])->assertSessionHasNoErrors();
+
+        $this->assertSame('Alpha', $one->fresh()->name);
+    }
+
+    public function test_joining_an_open_group_adds_you_without_creating_another_group(): void
+    {
+        [$moderator, $joiner] = User::factory()->count(2)->create();
+        $open = $this->group($moderator, open: true, name: 'Everyone welcome');
+
+        $this->actingAs($joiner)->post("/team-chat/{$open->id}/join")->assertRedirect("/team-chat/{$open->id}");
+
+        $this->assertSame(1, Conversation::count());
+        $this->assertSame(2, $open->members()->count());
+
+        $this->actingAs($joiner)->get('/team-chat')
+            ->assertInertia(fn (Assert $page) => $page->has('sidebar.groups', 1)->has('joinable', 0));
+    }
+
     public function test_only_the_moderator_can_manage_a_group(): void
     {
         [$moderator, $member, $newcomer] = User::factory()->count(3)->create();
