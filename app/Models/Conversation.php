@@ -41,9 +41,18 @@ class Conversation extends Model
         return $this->hasMany(Message::class)->oldest('seq');
     }
 
+    // app/Models/Conversation.php
+
     public function latestMessage(): HasOne
     {
-        return $this->hasOne(Message::class)->latestOfMany('seq');
+        return $this->hasOne(Message::class)
+            ->whereRaw(
+                'messages.seq = ('
+                . 'select max(m2.seq) from messages m2 '
+                . 'where m2.conversation_id = messages.conversation_id '
+                . 'and m2.deleted_at is null'
+                . ')'
+            );
     }
 
     public function keys(): HasMany
