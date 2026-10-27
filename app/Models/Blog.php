@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Support\VideoEmbed;
 use Database\Factories\BlogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
 class Blog extends Model
 {
     /** @use HasFactory<BlogFactory> */
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     /** How many featured posts the home page shows. */
     public const HOME_FEATURED_LIMIT = 3;

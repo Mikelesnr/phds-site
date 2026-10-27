@@ -12,8 +12,8 @@ class ConversationChanged implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets;
 
-    /** @param  'details'|'members'|'deleted'  $change */
-    public function __construct(public int $conversationId, public string $change) {}
+    /** @param  'details'|'members'|'keys'|'deleted'  $change */
+    public function __construct(public string $conversationId, public string $change) {}
 
     /** @return list<PrivateChannel> */
     public function broadcastOn(): array

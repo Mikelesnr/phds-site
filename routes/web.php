@@ -5,6 +5,7 @@ use Illuminate\Foundation\Application;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\ChatKeyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TeamChatController;
 use App\Http\Controllers\TeamMessageController;
@@ -97,6 +98,8 @@ Route::middleware('auth')
         Route::post('/{conversation}/members', [TeamChatController::class, 'addMembers'])->name('members.add');
         Route::delete('/{conversation}/members/{user}', [TeamChatController::class, 'removeMember'])->name('members.remove');
         Route::post('/{conversation}/read', [TeamChatController::class, 'markRead'])->name('read');
+        Route::get('/{conversation}/keys', [ChatKeyController::class, 'conversation'])->name('keys.show');
+        Route::post('/{conversation}/keys', [ChatKeyController::class, 'grant'])->name('keys.grant');
 
         Route::middleware('throttle:90,1')->group(function () {
             Route::post('/{conversation}/messages', [TeamMessageController::class, 'store'])->name('messages.store');
@@ -113,4 +116,15 @@ Route::middleware('auth')
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::post('/read-all', [NotificationController::class, 'readAll'])->name('read-all');
         Route::post('/{id}/read', [NotificationController::class, 'read'])->name('read');
+    });
+
+// End-to-end encryption identity: public key and a private key only the owner can open.
+Route::middleware('auth')
+    ->prefix('chat-keys')
+    ->name('chat.keys.')
+    ->controller(ChatKeyController::class)
+    ->group(function () {
+        Route::get('/me', 'me')->name('me');
+        Route::post('/', 'store')->name('store');
+        Route::post('/reset', 'reset')->name('reset');
     });

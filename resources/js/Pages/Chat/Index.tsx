@@ -2,12 +2,16 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import {
     ArrowLeft,
+    Forward,
     Globe,
     Lock,
     MessageSquarePlus,
     Send,
     Settings,
+    ShieldCheck,
+    TriangleAlert,
     Users,
+    X,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -18,8 +22,19 @@ import {
     NewDirectDialog,
     NewGroupDialog,
 } from '@/Components/chat/dialogs';
-import { MessageBubble } from '@/Components/chat/message-bubble';
+import { ForwardDialog } from '@/Components/chat/forward-dialog';
+import { MessageBubble, type MessageView } from '@/Components/chat/message-bubble';
+import { SecureGate } from '@/Components/chat/secure-gate';
+import { SecurityDialog } from '@/Components/chat/security-dialog';
+import {
+    openAll,
+    useChatIdentity,
+    useConversationKeys,
+    useDecryptedMessages,
+    useSecurityCodes,
+} from '@/lib/chat-crypto';
 import { getEcho, socketHeaders } from '@/lib/echo';
+import { encryptEnvelope, type Envelope } from '@/lib/e2ee';
 import { routes } from '@/lib/routes';
 import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
@@ -28,6 +43,7 @@ import type {
     ChatMessage,
     ChatPerson,
     ChatSidebar,
+    CryptoBlock,
     JoinableGroup,
     SharedProps,
     SidebarItem,
@@ -40,7 +56,18 @@ type Props = {
     joinable: JoinableGroup[];
 };
 
-type Dialog = 'direct' | 'group' | 'browse' | 'admin' | 'members' | null;
+type Dialog = 'direct' | 'group' | 'browse' | 'admin' | 'members' | 'security' | null;
+
+/** Keep a thread in order, and replace a message we already have. */
+function place(list: ChatMessage[], message: ChatMessage): ChatMessage[] {
+    const without = list.filter((m) => m.id !== message.id);
+    return [...without, message].sort((a, b) => a.seq - b.seq);
+}
+
+function excerpt(text: string): string {
+    const flat = text.replace(/\s+/g, ' ').trim();
+    return flat.length > 140 ? `${flat.slice(0, 140)}...` : flat;
+}
 
 function dayLabel(iso: string): string {
     const date = new Date(iso);
@@ -111,38 +138,20 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
     const { auth, realtime } = usePage<SharedProps>().props;
     const me = auth.user;
     const echo = useMemo(() => getEcho(realtime), [realtime]);
+    const secure = useChatIdentity(me.id);
 
     const [dialog, setDialog] = useState<Dialog>(null);
     const [messages, setMessages] = useState<ChatMessage[]>(conversation?.messages ?? []);
     const [draft, setDraft] = useState('');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+    const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
+    const [highlight, setHighlight] = useState<string | null>(null);
     const scroller = useRef<HTMLDivElement>(null);
     const [offset, setOffset] = useState(96);
     const stickToBottom = useRef(true);
     const conversationId = conversation?.id ?? null;
-
-    const messagesRef = useRef(messages);
-    messagesRef.current = messages;
-    const lastConversationId = useRef(conversationId);
-
-    // The server sends every message in the conversation. Whenever it sends them again, adopt them.
-    useEffect(() => {
-        const incoming = conversation?.messages ?? [];
-
-        // Same conversation, and a message from someone else we have not shown yet: that is news.
-        if (lastConversationId.current === conversationId) {
-            const known = new Set(messagesRef.current.map((m) => m.id));
-            if (incoming.some((m) => !known.has(m.id) && m.user_id !== me.id && !m.deleted)) {
-                playSound(document.hidden ? 'notify' : 'message');
-            }
-        }
-        lastConversationId.current = conversationId;
-
-        setMessages(incoming);
-        stickToBottom.current = true;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [conversation]);
 
     // Fill exactly the space under the header, whatever height it has on this screen.
     useLayoutEffect(() => {
@@ -162,6 +171,44 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
         });
     }, [conversationId]);
 
+    const keysShared = useCallback(() => {
+        if (conversationId) router.reload({ only: ['conversation', 'sidebar'] });
+    }, [conversationId]);
+
+    const { keys, latestVersion, opening, canWrite } = useConversationKeys({
+        conversation,
+        identity: secure.identity,
+        meId: me.id,
+        onShared: keysShared,
+    });
+    const plain = useDecryptedMessages(messages, keys);
+    const security = useSecurityCodes(conversation, me.id);
+
+    const messagesRef = useRef(messages);
+    messagesRef.current = messages;
+    const lastConversationId = useRef(conversationId);
+
+    // The server sends every message in the conversation. Whenever it sends them again, adopt them.
+    useEffect(() => {
+        const incoming = conversation?.messages ?? [];
+
+        // Same conversation, and a message from someone else we have not shown yet: that is news.
+        if (lastConversationId.current === conversationId) {
+            const known = new Set(messagesRef.current.map((m) => m.id));
+            if (incoming.some((m) => !known.has(m.id) && m.user_id !== me.id && !m.deleted)) {
+                playSound(document.hidden ? 'notify' : 'message');
+            }
+        } else {
+            setReplyingTo(null);
+            setDraft('');
+        }
+        lastConversationId.current = conversationId;
+
+        setMessages(incoming);
+        stickToBottom.current = true;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversation]);
+
     const markRead = useCallback(() => {
         if (conversationId && !document.hidden) {
             axios.post(`${routes.teamChat}/${conversationId}/read`).catch(() => undefined);
@@ -173,7 +220,7 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
         if (!echo) return;
 
         const user = echo.private(`App.Models.User.${me.id}`);
-        user.listen('.notification.created', (event: { notification: { data: { kind: string; conversation_id: number } } }) => {
+        user.listen('.notification.created', (event: { notification: { data: { kind: string; conversation_id: string } } }) => {
             const { kind, conversation_id } = event.notification.data;
             if (kind === 'removed' && conversation_id === conversationId) {
                 router.visit(routes.teamChat);
@@ -189,16 +236,14 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
             channel
                 .listen('.message.created', ({ message }: { message: ChatMessage }) => {
                     if (message.user_id !== me.id) playSound(document.hidden ? 'notify' : 'message');
-                    setMessages((current) =>
-                        current.some((m) => m.id === message.id) ? current : [...current, message],
-                    );
+                    setMessages((current) => place(current, message));
                     markRead();
                 })
                 .listen('.message.updated', ({ message }: { message: ChatMessage }) =>
-                    setMessages((current) => current.map((m) => (m.id === message.id ? message : m))),
+                    setMessages((current) => place(current, message)),
                 )
                 .listen('.message.deleted', ({ message }: { message: ChatMessage }) =>
-                    setMessages((current) => current.map((m) => (m.id === message.id ? message : m))),
+                    setMessages((current) => place(current, message)),
                 )
                 .listen('.conversation.changed', ({ change }: { change: string }) => {
                     if (change === 'deleted') router.visit(routes.teamChat);
@@ -224,25 +269,73 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
     useEffect(() => {
         const element = scroller.current;
         if (element && stickToBottom.current) element.scrollTop = element.scrollHeight;
-    }, [messages, conversationId]);
+    }, [messages, conversationId, keys]);
+
+    /** What a reader sees for a message: its decrypted text, a reply quote, a forward label. */
+    const viewOf = useCallback(
+        (message: ChatMessage): MessageView => {
+            if (message.deleted) return { state: 'ok' };
+
+            const opened = plain(message);
+            if (!opened) return { state: 'waiting' };
+            if (!opened.ok) return { state: 'error' };
+
+            const { env } = opened;
+            let reply: MessageView['reply'] = null;
+
+            if (env.reply) {
+                const target = messages.find((m) => m.id === env.reply?.id);
+                const targetPlain = target && !target.deleted ? plain(target) : null;
+                reply =
+                    target && targetPlain && targetPlain.ok
+                        ? { author: target.author, excerpt: excerpt(targetPlain.env.text) }
+                        : 'unavailable';
+            }
+
+            return { state: 'ok', text: env.text, forwarded: env.forwarded, reply, replyId: env.reply?.id };
+        },
+        [plain, messages],
+    );
+
+    /** Encrypt and send, retrying a flaky connection with the very same message so it never doubles. */
+    const post = async (target: string, body: { id: string; ciphertext: string; iv: string; key_version: number }) => {
+        for (let attempt = 1; ; attempt++) {
+            try {
+                const { data } = await axios.post<{ message: ChatMessage }>(
+                    `${routes.teamChat}/${target}/messages`,
+                    body,
+                    { headers: socketHeaders(echo) },
+                );
+                return data.message;
+            } catch (caught) {
+                const offline = axios.isAxiosError(caught) && !caught.response;
+                if (!offline || attempt >= 3) throw caught;
+            }
+        }
+    };
 
     const send = async () => {
-        const body = draft.trim();
-        if (!body || !conversationId || sending) return;
+        const text = draft.trim();
+        const key = latestVersion !== null ? keys.get(latestVersion) : undefined;
+        if (!text || !conversationId || sending || !key || latestVersion === null) return;
 
         setSending(true);
         setError(null);
         try {
-            const { data } = await axios.post<{ message: ChatMessage }>(
-                `${routes.teamChat}/${conversationId}/messages`,
-                { body },
-                { headers: socketHeaders(echo) },
-            );
+            const id = crypto.randomUUID();
+            const envelope: Envelope = { v: 1, text, ...(replyingTo ? { reply: { id: replyingTo.id } } : {}) };
+            const sealed = await encryptEnvelope(key, envelope, {
+                conversationId,
+                messageId: id,
+                senderId: me.id,
+                version: latestVersion,
+            });
+
+            const saved = await post(conversationId, { id, ...sealed, key_version: latestVersion });
             stickToBottom.current = true;
-            setMessages((current) =>
-                current.some((m) => m.id === data.message.id) ? current : [...current, data.message],
-            );
+            setMessages((current) => place(current, saved));
             setDraft('');
+            setReplyingTo(null);
             router.reload({ only: ['sidebar', 'team'] });
         } catch (caught) {
             setError(
@@ -255,13 +348,25 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
         }
     };
 
-    const edit = async (message: ChatMessage, body: string) => {
+    const edit = async (message: ChatMessage, text: string) => {
+        const opened = plain(message);
+        const key = latestVersion !== null ? keys.get(latestVersion) : undefined;
+        if (!opened?.ok || !key || latestVersion === null) return;
+
+        // Keep the reply or forward label, change only the words.
+        const sealed = await encryptEnvelope(key, { ...opened.env, text }, {
+            conversationId: message.conversation_id,
+            messageId: message.id,
+            senderId: message.sender_id,
+            version: latestVersion,
+        });
+
         const { data } = await axios.patch<{ message: ChatMessage }>(
             `${routes.teamChat}/messages/${message.id}`,
-            { body },
+            { ...sealed, key_version: latestVersion },
             { headers: socketHeaders(echo) },
         );
-        setMessages((current) => current.map((m) => (m.id === message.id ? data.message : m)));
+        setMessages((current) => place(current, data.message));
     };
 
     const remove = async (message: ChatMessage) => {
@@ -269,7 +374,54 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
             `${routes.teamChat}/messages/${message.id}`,
             { headers: socketHeaders(echo) },
         );
-        setMessages((current) => current.map((m) => (m.id === message.id ? data.message : m)));
+        setMessages((current) => place(current, data.message));
+    };
+
+    /** Forward: decrypt here, then encrypt again for each chosen conversation. */
+    const forward = async (message: ChatMessage, targets: string[]): Promise<Record<string, string | null>> => {
+        const opened = plain(message);
+        const results: Record<string, string | null> = {};
+        if (!opened?.ok || !secure.identity) return Object.fromEntries(targets.map((id) => [id, 'Could not read the message.']));
+
+        for (const target of targets) {
+            try {
+                const { data } = await axios.get<CryptoBlock>(`${routes.teamChat}/${target}/keys`);
+                const held = await openAll(data.my_keys, secure.identity);
+
+                if (held.size === 0) {
+                    results[target] = 'This chat has no key for you yet. Open it once, then try again.';
+                    continue;
+                }
+
+                const version = Math.max(...held.keys());
+                const id = crypto.randomUUID();
+                const sealed = await encryptEnvelope(
+                    held.get(version)!,
+                    {
+                        v: 1,
+                        text: opened.env.text,
+                        // Forwarding a forward keeps pointing at the original author.
+                        forwarded: opened.env.forwarded ?? { author: message.author, at: message.created_at },
+                    },
+                    { conversationId: target, messageId: id, senderId: me.id, version },
+                );
+
+                const saved = await post(target, { id, ...sealed, key_version: version });
+                if (target === conversationId) setMessages((current) => place(current, saved));
+                results[target] = null;
+            } catch {
+                results[target] = 'Could not forward to this chat.';
+            }
+        }
+
+        router.reload({ only: ['sidebar', 'team'] });
+        return results;
+    };
+
+    const jumpTo = (id: string) => {
+        document.getElementById(`msg-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        setHighlight(id);
+        window.setTimeout(() => setHighlight(null), 1600);
     };
 
     const groups = useMemo(() => {
@@ -284,6 +436,17 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
     }, [messages]);
 
     const isGroup = conversation?.type === 'group';
+    const replyView = replyingTo ? viewOf(replyingTo) : null;
+    const forwardTargets = [...sidebar.groups, ...sidebar.direct];
+    const mayStart = conversation ? conversation.type === 'direct' || conversation.is_moderator : false;
+
+    const waitingNotice = (() => {
+        if (!conversation) return '';
+        if (!conversation.crypto.provisioned && !mayStart) {
+            return `Waiting for ${isGroup ? 'the group moderator' : 'the other person'} to open this chat so it can be secured.`;
+        }
+        return 'Waiting for the encryption key. It is shared with you automatically when someone who has it opens this chat.';
+    })();
 
     return (
         <>
@@ -404,7 +567,14 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                         conversation ? 'flex' : 'hidden lg:flex',
                     )}
                 >
-                    {conversation ? (
+                    {secure.status !== 'ready' ? (
+                        <SecureGate
+                            status={secure.status}
+                            onSetup={secure.setup}
+                            onUnlock={secure.unlock}
+                            onReset={secure.reset}
+                        />
+                    ) : conversation ? (
                         <>
                             <header className="flex items-center gap-3 border-b border-border px-4 py-3">
                                 <Link
@@ -433,6 +603,15 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                                             : 'Direct message'}
                                     </p>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setDialog('security')}
+                                    aria-label="Encryption details"
+                                    title="End-to-end encrypted. See security codes."
+                                    className="inline-flex size-10 items-center justify-center rounded-full text-highlight hover:bg-muted"
+                                >
+                                    <ShieldCheck className="size-5" aria-hidden="true" />
+                                </button>
                                 {isGroup &&
                                     (conversation.is_moderator ? (
                                         <button
@@ -457,6 +636,32 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                                     ))}
                             </header>
 
+                            {security.changed.length > 0 && (
+                                <div role="alert" data-testid="code-changed" className="flex flex-wrap items-center gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm">
+                                    <TriangleAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden="true" />
+                                    <span className="min-w-0 flex-1">
+                                        The security code for{' '}
+                                        <strong>
+                                            {security.changed
+                                                .map((id) => conversation.members.find((m) => m.id === id)?.name)
+                                                .filter(Boolean)
+                                                .join(', ')}
+                                        </strong>{' '}
+                                        changed. This usually means they reset their chat key. Check it with them before sharing anything sensitive.
+                                    </span>
+                                    <button type="button" onClick={() => setDialog('security')} className="font-bold underline">
+                                        View codes
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => security.changed.forEach((id) => security.accept(id))}
+                                        className="rounded-lg bg-primary px-3 py-1 font-bold text-primary-foreground"
+                                    >
+                                        I have checked
+                                    </button>
+                                </div>
+                            )}
+
                             <div
                                 ref={scroller}
                                 onScroll={(event) => {
@@ -467,7 +672,7 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                             >
                                 {messages.length === 0 && (
                                     <p className="py-16 text-center text-muted-foreground">
-                                        No messages yet. Say hello.
+                                        No messages yet. Say hello. Messages are end-to-end encrypted.
                                     </p>
                                 )}
                                 {groups.map((group) => (
@@ -479,57 +684,91 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                                             <MessageBubble
                                                 key={message.id}
                                                 message={message}
+                                                view={viewOf(message)}
                                                 mine={message.user_id === me.id}
                                                 canDelete={message.user_id === me.id || conversation.is_moderator}
+                                                highlighted={highlight === message.id}
                                                 onEdit={edit}
                                                 onDelete={remove}
+                                                onReply={(m) => setReplyingTo(m)}
+                                                onForward={(m) => setForwarding(m)}
+                                                onJump={jumpTo}
                                             />
                                         ))}
                                     </div>
                                 ))}
                             </div>
 
-                            <form
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    void send();
-                                }}
-                                className="border-t border-border p-3"
-                            >
-                                {error && (
-                                    <p role="alert" className="mb-2 text-sm font-medium text-red-600 dark:text-red-400">
-                                        {error}
-                                    </p>
-                                )}
-                                <div className="flex items-end gap-2">
-                                    <label htmlFor="message-input" className="sr-only">
-                                        Message
-                                    </label>
-                                    <textarea
-                                        id="message-input"
-                                        rows={1}
-                                        value={draft}
-                                        maxLength={4000}
-                                        onChange={(event) => setDraft(event.target.value)}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Enter' && !event.shiftKey) {
-                                                event.preventDefault();
-                                                void send();
-                                            }
-                                        }}
-                                        placeholder="Write a message"
-                                        className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-base focus:border-highlight focus:ring-1 focus:ring-highlight"
-                                    />
-                                    <button
-                                        type="submit"
-                                        disabled={sending || draft.trim() === ''}
-                                        aria-label="Send message"
-                                        className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition hover:brightness-110 disabled:opacity-50"
-                                    >
-                                        <Send className="size-5" aria-hidden="true" />
-                                    </button>
-                                </div>
-                            </form>
+                            {opening ? (
+                                <p className="border-t border-border p-4 text-center text-sm text-muted-foreground">
+                                    Opening secure conversation...
+                                </p>
+                            ) : !canWrite ? (
+                                <p
+                                    data-testid="waiting-key"
+                                    className="flex items-center justify-center gap-2 border-t border-border p-4 text-center text-sm text-muted-foreground"
+                                >
+                                    <Lock className="size-4 shrink-0" aria-hidden="true" /> {waitingNotice}
+                                </p>
+                            ) : (
+                                <form
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        void send();
+                                    }}
+                                    className="border-t border-border p-3"
+                                >
+                                    {replyingTo && replyView && (
+                                        <div data-testid="replying-to" className="mb-2 flex items-start gap-3 rounded-xl border-l-4 border-highlight bg-muted px-3 py-2 text-sm">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-bold text-highlight">Replying to {replyingTo.author}</p>
+                                                <p className="line-clamp-2">{replyView.text ? excerpt(replyView.text) : 'Message'}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setReplyingTo(null)}
+                                                aria-label="Cancel reply"
+                                                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full hover:bg-background"
+                                            >
+                                                <X className="size-4" aria-hidden="true" />
+                                            </button>
+                                        </div>
+                                    )}
+                                    {error && (
+                                        <p role="alert" className="mb-2 text-sm font-medium text-red-600 dark:text-red-400">
+                                            {error}
+                                        </p>
+                                    )}
+                                    <div className="flex items-end gap-2">
+                                        <label htmlFor="message-input" className="sr-only">
+                                            Message
+                                        </label>
+                                        <textarea
+                                            id="message-input"
+                                            rows={1}
+                                            value={draft}
+                                            maxLength={4000}
+                                            onChange={(event) => setDraft(event.target.value)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' && !event.shiftKey) {
+                                                    event.preventDefault();
+                                                    void send();
+                                                }
+                                            }}
+                                            placeholder="Write an encrypted message"
+                                            className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-base focus:border-highlight focus:ring-1 focus:ring-highlight"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={sending || draft.trim() === ''}
+                                            aria-label="Send message"
+                                            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition hover:brightness-110 disabled:opacity-50"
+                                        >
+                                            <Send className="size-5" aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
                         </>
                     ) : (
                         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-center">
@@ -538,7 +777,8 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                             </span>
                             <h2 className="text-3xl font-medium">Team chat</h2>
                             <p className="max-w-sm text-muted-foreground">
-                                Pick a conversation, message someone directly, or start a group for a project.
+                                Pick a conversation, message someone directly, or start a group for a project. Everything is
+                                end-to-end encrypted.
                             </p>
                             {joinable.length > 0 && (
                                 <p className="max-w-sm text-sm text-muted-foreground">
@@ -547,18 +787,10 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
                                 </p>
                             )}
                             <div className="flex flex-wrap justify-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setDialog('direct')}
-                                    className="rounded-lg bg-accent px-5 py-2.5 font-bold text-accent-foreground"
-                                >
+                                <button type="button" onClick={() => setDialog('direct')} className="rounded-lg bg-accent px-5 py-2.5 font-bold text-accent-foreground">
                                     New message
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setDialog('group')}
-                                    className="rounded-lg border border-border px-5 py-2.5 font-bold hover:bg-muted"
-                                >
+                                <button type="button" onClick={() => setDialog('group')} className="rounded-lg border border-border px-5 py-2.5 font-bold hover:bg-muted">
                                     New group
                                 </button>
                             </div>
@@ -575,6 +807,17 @@ export default function ChatIndex({ sidebar, conversation, people, joinable }: P
             )}
             {dialog === 'members' && conversation && !conversation.is_moderator && (
                 <GroupMembersDialog conversation={conversation} onClose={() => setDialog(null)} />
+            )}
+            {dialog === 'security' && conversation && (
+                <SecurityDialog members={conversation.members} codes={security.codes} meId={me.id} onClose={() => setDialog(null)} />
+            )}
+            {forwarding && (
+                <ForwardDialog
+                    preview={viewOf(forwarding).text ?? ''}
+                    targets={forwardTargets}
+                    onSend={(ids) => forward(forwarding, ids)}
+                    onClose={() => setForwarding(null)}
+                />
             )}
         </>
     );

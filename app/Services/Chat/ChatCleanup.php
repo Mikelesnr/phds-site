@@ -36,6 +36,16 @@ class ChatCleanup
                     }
                 });
 
+            // Every group they are leaving gets a fresh key.
+            Conversation::query()
+                ->where('type', 'group')
+                ->whereHas('members', fn ($q) => $q->whereKey($user->id))
+                ->get()
+                ->each(function (Conversation $conversation) use ($user) {
+                    $conversation->keys()->where('user_id', $user->id)->delete();
+                    $conversation->increment('key_version');
+                });
+
             $user->notifications()->delete();
         });
     }

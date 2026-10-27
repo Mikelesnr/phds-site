@@ -13,7 +13,7 @@ class ChatNotificationCreated implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets;
 
     /** @param  array<string, mixed>  $notification */
-    public function __construct(public int $userId, public array $notification) {}
+    public function __construct(public string $userId, public array $notification) {}
 
     /** @return list<PrivateChannel> */
     public function broadcastOn(): array

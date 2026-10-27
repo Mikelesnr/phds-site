@@ -6,6 +6,7 @@ import { LogoMark } from '@/Components/logo';
 import { ThemeToggle } from '@/Components/theme-toggle';
 import { FlashToast } from '@/Layouts/site-layout';
 import { routes } from '@/lib/routes';
+import { clearUnlessKept } from '@/lib/key-store';
 import { unlockSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
@@ -101,6 +102,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         <ThemeToggle />
                         <Link
                             href="/logout"
+                            onClick={() => void clearUnlessKept(auth.user.id)}
                             method="post"
                             as="button"
                             className="rounded-lg border border-border px-4 py-2 font-bold transition hover:bg-muted"

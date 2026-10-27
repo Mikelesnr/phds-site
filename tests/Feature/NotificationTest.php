@@ -11,15 +11,16 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Concerns\InteractsWithChat;
 use Tests\TestCase;
 
 class NotificationTest extends TestCase
 {
-    use RefreshDatabase;
+    use InteractsWithChat, RefreshDatabase;
 
     private function send(User $from, Conversation $conversation, string $body): void
     {
-        $this->actingAs($from)->postJson("/team-chat/{$conversation->id}/messages", ['body' => $body])->assertCreated();
+        $this->actingAs($from)->postJson("/team-chat/{$conversation->id}/messages", $this->cipher($body))->assertCreated();
     }
 
     public function test_a_message_notifies_everyone_except_its_sender(): void
@@ -36,6 +37,7 @@ class NotificationTest extends TestCase
         foreach ([$a, $b, $c] as $user) {
             $group->members()->attach($user->id, ['role' => $user->is($a) ? MemberRole::Moderator->value : MemberRole::Member->value]);
         }
+        $this->keyed($group);
 
         $this->send($a, $group, 'Kick-off at nine');
 
@@ -47,14 +49,14 @@ class NotificationTest extends TestCase
         $this->assertSame('message', $data['kind']);
         $this->assertSame('Project X', $data['title']);
         $this->assertSame('Ada', $data['sender']);
-        $this->assertSame('Kick-off at nine', $data['preview']);
+        $this->assertSame('New message', $data['preview'], 'the server cannot read messages, so there is no text to preview');
         $this->assertSame("/team-chat/{$group->id}", $data['url']);
     }
 
     public function test_several_unread_messages_collapse_into_one_notification(): void
     {
         [$a, $b] = User::factory()->count(2)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
         $this->send($a, $conversation, 'one');
         $this->send($a, $conversation, 'two');
@@ -62,7 +64,7 @@ class NotificationTest extends TestCase
 
         $this->assertSame(1, $b->notifications()->count());
         $this->assertSame(3, $b->notifications()->first()->data['count']);
-        $this->assertSame('three', $b->notifications()->first()->data['preview']);
+        $this->assertSame('New message', $b->notifications()->first()->data['preview']);
     }
 
     public function test_the_notification_is_pushed_to_the_recipients_private_channel(): void
@@ -70,22 +72,22 @@ class NotificationTest extends TestCase
         Event::fake([ChatNotificationCreated::class]);
 
         [$a, $b] = User::factory()->count(2)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
         $this->send($a, $conversation, 'ping');
 
         Event::assertDispatched(ChatNotificationCreated::class, fn ($e) => $e->userId === $b->id
             && $e->broadcastOn()[0]->name === "private-App.Models.User.{$b->id}"
-            && $e->notification['data']['preview'] === 'ping');
+            && $e->notification['data']['preview'] === 'New message');
         Event::assertNotDispatched(ChatNotificationCreated::class, fn ($e) => $e->userId === $a->id);
     }
 
     public function test_opening_the_conversation_marks_its_notifications_read(): void
     {
         [$a, $b] = User::factory()->count(2)->create();
-        $one = Conversation::directBetween($a, $b);
+        $one = $this->dm($a, $b);
         $c = User::factory()->create();
-        $two = Conversation::directBetween($c, $b);
+        $two = $this->dm($c, $b);
 
         $this->send($a, $one, 'from a');
         $this->send($c, $two, 'from c');
@@ -100,14 +102,14 @@ class NotificationTest extends TestCase
     public function test_the_bell_lists_only_my_notifications(): void
     {
         [$a, $b, $c] = User::factory()->count(3)->create();
-        $this->send($a, Conversation::directBetween($a, $b), 'for b');
-        $this->send($a, Conversation::directBetween($a, $c), 'for c');
+        $this->send($a, $this->dm($a, $b), 'for b');
+        $this->send($a, $this->dm($a, $c), 'for c');
 
         $this->actingAs($b)->getJson('/notifications')
             ->assertOk()
             ->assertJsonPath('unread', 1)
             ->assertJsonCount(1, 'items')
-            ->assertJsonPath('items.0.data.preview', 'for b')
+            ->assertJsonPath('items.0.data.sender', $a->name)
             ->assertJsonPath('items.0.read', false);
     }
 
@@ -115,8 +117,8 @@ class NotificationTest extends TestCase
     {
         [$a, $b] = User::factory()->count(2)->create();
         $c = User::factory()->create();
-        $this->send($a, Conversation::directBetween($a, $b), 'one');
-        $this->send($c, Conversation::directBetween($c, $b), 'two');
+        $this->send($a, $this->dm($a, $b), 'one');
+        $this->send($c, $this->dm($c, $b), 'two');
 
         $first = $b->notifications()->first();
 
@@ -130,7 +132,7 @@ class NotificationTest extends TestCase
     public function test_you_cannot_read_someone_elses_notification(): void
     {
         [$a, $b] = User::factory()->count(2)->create();
-        $this->send($a, Conversation::directBetween($a, $b), 'private');
+        $this->send($a, $this->dm($a, $b), 'private');
         $theirs = $b->notifications()->first();
 
         $this->actingAs($a)->postJson("/notifications/{$theirs->id}/read")->assertNotFound();

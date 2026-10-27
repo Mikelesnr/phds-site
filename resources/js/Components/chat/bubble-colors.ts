@@ -13,8 +13,11 @@ const palette = [
     { bubble: 'bg-indigo-100 text-indigo-950 dark:bg-indigo-900/55 dark:text-indigo-50', name: 'text-indigo-700 dark:text-indigo-300' },
 ];
 
-export function colorFor(userId: number | null) {
-    return palette[Math.abs(userId ?? 0) % palette.length];
+/** Same person, same colour, on every screen: a small stable hash of their id. */
+export function colorFor(userId: string | null) {
+    let hash = 0;
+    for (const char of userId ?? '') hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+    return palette[hash % palette.length];
 }
 
 /** Your own messages use the site's lime, the same in groups and direct chats. */
