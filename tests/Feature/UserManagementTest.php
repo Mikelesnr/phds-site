@@ -13,11 +13,12 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Concerns\InteractsWithChat;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
 {
-    use RefreshDatabase;
+    use InteractsWithChat, RefreshDatabase;
 
     private function valid(array $overrides = []): array
     {
@@ -173,16 +174,21 @@ class UserManagementTest extends TestCase
         $stayer = User::factory()->staff()->create();
 
         $blog = Blog::factory()->create(['user_id' => $leaver->id]);
-        $direct = Conversation::directBetween($leaver, $stayer);
-        $message = new Message(['body' => 'goodbye']);
+        $direct = $this->dm($leaver, $stayer);
+        $message = new Message;
         $message->conversation_id = $direct->id;
         $message->user_id = $leaver->id;
+        $message->sender_id = $leaver->id;
+        $message->ciphertext = base64_encode('goodbye');
+        $message->iv = base64_encode('0123456789ab');
+        $message->key_version = 1;
         $message->save();
 
         $this->actingAs($admin)->delete("/admin/users/{$leaver->id}")->assertRedirect();
 
         $this->assertNull($blog->fresh()->user_id);
         $this->assertNull($message->fresh()->user_id);
+        $this->assertSame($leaver->id, $message->fresh()->sender_id, 'the sender stays recorded so the message still decrypts');
         $this->assertSame('Former member', $message->fresh()->load('author')->toChatArray()['author']);
     }
 

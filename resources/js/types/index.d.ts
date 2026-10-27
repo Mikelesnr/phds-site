@@ -1,5 +1,5 @@
 export interface User {
-    id: number;
+    id: string;
     name: string;
     email: string;
     email_verified_at?: string;
@@ -91,7 +91,7 @@ export type BlogVideo = {
 };
 
 export type BlogPost = {
-    id: number;
+    id: string;
     slug: string;
     title: string;
     excerpt: string;
@@ -115,18 +115,18 @@ export type Paginated<T> = {
 };
 
 export type AdminBlogRow = {
-    id: number;
+    id: string;
     title: string;
     is_featured: boolean;
     status: 'published' | 'draft';
     published_label: string | null;
     updated_label: string;
     author: string | null;
-    author_id: number | null;
+    author_id: string | null;
 };
 
 export type AdminBlogForm = {
-    id: number;
+    id: string;
     title: string;
     excerpt: string;
     body: string;
@@ -146,32 +146,51 @@ export type RealtimeConfig = {
 };
 
 export type ChatMessage = {
-    id: number;
-    conversation_id: number;
-    user_id: number | null;
+    id: string;
+    seq: number;
+    conversation_id: string;
+    user_id: string | null;
+    /** Permanent id of who wrote it. The encryption is bound to this. */
+    sender_id: string;
     author: string;
-    body: string | null;
+    ciphertext: string | null;
+    iv: string | null;
+    key_version: number;
     deleted: boolean;
     edited: boolean;
     created_at: string;
 };
 
-export type ChatMember = { id: number; name: string; moderator: boolean };
+export type ChatMember = {
+    id: string;
+    name: string;
+    moderator: boolean;
+    public_key: string | null;
+    has_key: boolean;
+};
+
+export type CryptoBlock = {
+    key_version: number;
+    my_keys: Array<{ version: number; wrapped_key: string }>;
+    provisioned: boolean;
+    holders: string[];
+};
 
 export type ChatConversation = {
-    id: number;
+    id: string;
     type: 'direct' | 'group';
     visibility: 'open' | 'private';
     title: string;
     description: string | null;
     is_moderator: boolean;
     can_leave: boolean;
+    crypto: CryptoBlock;
     members: ChatMember[];
     messages: ChatMessage[];
 };
 
 export type SidebarItem = {
-    id: number;
+    id: string;
     type: 'direct' | 'group';
     visibility: 'open' | 'private';
     title: string;
@@ -181,8 +200,8 @@ export type SidebarItem = {
 };
 
 export type ChatSidebar = { direct: SidebarItem[]; groups: SidebarItem[] };
-export type ChatPerson = { id: number; name: string; role: string };
-export type JoinableGroup = { id: number; name: string; description: string | null; members: number };
+export type ChatPerson = { id: string; name: string; role: string; has_keys: boolean };
+export type JoinableGroup = { id: string; name: string; description: string | null; members: number };
 
 export type NotificationItem = {
     id: string;
@@ -190,7 +209,7 @@ export type NotificationItem = {
     created_at: string | null;
     data: {
         kind: 'message' | 'added' | 'removed';
-        conversation_id: number;
+        conversation_id: string;
         title: string;
         sender: string | null;
         preview: string;
@@ -200,7 +219,7 @@ export type NotificationItem = {
 };
 
 export type AdminUserRow = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     role: string;

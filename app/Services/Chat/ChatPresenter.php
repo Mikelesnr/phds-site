@@ -56,7 +56,7 @@ class ChatPresenter
                 'type' => $c->type->value,
                 'visibility' => $c->visibility->value,
                 'title' => $c->titleFor($user),
-                'preview' => $c->latestMessage ? str($c->latestMessage->body)->squish()->limit(60)->toString() : null,
+                'preview' => $c->latestMessage ? 'Encrypted message' : null,
                 'last_at' => ($c->latestMessage?->created_at ?? $c->created_at)?->toIso8601String(),
                 'unread' => $unread->get($c->id, 0),
             ])
@@ -77,7 +77,8 @@ class ChatPresenter
      */
     public function conversation(User $user, Conversation $conversation): array
     {
-        $conversation->load('members:id,name');
+        $conversation->load(['members:id,name', 'members.chatKey:id,user_id,public_key']);
+        $crypto = $this->crypto($user, $conversation);
 
         $messages = $conversation->messages()
             ->withTrashed()
@@ -94,11 +95,14 @@ class ChatPresenter
             'description' => $conversation->description,
             'is_moderator' => $conversation->isModeratedBy($user),
             'can_leave' => $conversation->isGroup() && ! $conversation->isModeratedBy($user),
+            'crypto' => $crypto,
             'members' => $conversation->members
                 ->map(fn (User $member) => [
                     'id' => $member->id,
                     'name' => $member->name,
                     'moderator' => $member->pivot->role === MemberRole::Moderator,
+                    'public_key' => $member->chatKey?->public_key,
+                    'has_key' => in_array($member->id, $crypto['holders'], true),
                 ])
                 ->sortBy([['moderator', 'desc'], ['name', 'asc']])
                 ->values()
@@ -116,9 +120,15 @@ class ChatPresenter
     {
         return User::query()
             ->whereKeyNot($user->id)
+            ->with('chatKey:id,user_id')
             ->orderBy('name')
             ->get(['id', 'name', 'role'])
-            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'role' => $u->role->value])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'role' => $u->role->value,
+                'has_keys' => $u->chatKey !== null,
+            ])
             ->all();
     }
 
@@ -143,6 +153,27 @@ class ChatPresenter
                 'members' => $c->members_count,
             ])
             ->all();
+    }
+
+    /**
+     * What the browser needs to open a conversation: my sealed copies of its keys, and
+     * who already has the current one. Everything here is opaque to the server.
+     *
+     * @return array{key_version: int, my_keys: list<array{version: int, wrapped_key: string}>, provisioned: bool, holders: list<string>}
+     */
+    public function crypto(User $user, Conversation $conversation): array
+    {
+        $keys = $conversation->keys()->get(['user_id', 'key_version', 'wrapped_key']);
+
+        return [
+            'key_version' => $conversation->key_version,
+            'my_keys' => $keys->where('user_id', $user->id)
+                ->map(fn ($k) => ['version' => $k->key_version, 'wrapped_key' => $k->wrapped_key])
+                ->values()
+                ->all(),
+            'provisioned' => $keys->contains('key_version', $conversation->key_version),
+            'holders' => $keys->where('key_version', $conversation->key_version)->pluck('user_id')->values()->all(),
+        ];
     }
 
     /** A person has now seen everything up to this moment. */

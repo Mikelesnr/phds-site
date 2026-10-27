@@ -46,9 +46,9 @@ class TeamChatController extends Controller
     /** Start, or reopen, the one direct chat between two people. */
     public function storeDirect(Request $request): RedirectResponse
     {
-        $data = $request->validate(['user_id' => ['required', 'integer', 'exists:users,id']]);
+        $data = $request->validate(['user_id' => ['required', 'uuid', 'exists:users,id']]);
 
-        abort_if((int) $data['user_id'] === $request->user()->id, 422, 'You cannot message yourself.');
+        abort_if($data['user_id'] === $request->user()->id, 422, 'You cannot message yourself.');
 
         $conversation = Conversation::directBetween($request->user(), User::findOrFail($data['user_id']));
 
@@ -63,7 +63,7 @@ class TeamChatController extends Controller
             'description' => ['nullable', 'string', 'max:300'],
             'visibility' => ['required', Rule::enum(ConversationVisibility::class)],
             'members' => ['nullable', 'array', 'max:100'],
-            'members.*' => ['integer', 'exists:users,id'],
+            'members.*' => ['uuid', 'exists:users,id'],
         ]);
 
         $creator = $request->user();
@@ -86,7 +86,7 @@ class TeamChatController extends Controller
                 'last_read_at' => now(),
             ]);
 
-            $others = collect($data['members'] ?? [])->map(fn ($id) => (int) $id)->unique()->reject(fn ($id) => $id === $creator->id);
+            $others = collect($data['members'] ?? [])->unique()->reject(fn ($id) => $id === $creator->id);
 
             $conversation->members()->attach(
                 $others->mapWithKeys(fn ($id) => [$id => ['role' => MemberRole::Member->value, 'last_read_at' => now()]])->all(),
@@ -161,6 +161,7 @@ class TeamChatController extends Controller
         Gate::authorize('leave', $conversation);
 
         $conversation->members()->detach($request->user()->id);
+        $this->rotateKey($conversation, $request->user()->id);
 
         Realtime::send(new ConversationChanged($conversation->id, 'members'), toOthers: true);
 
@@ -175,7 +176,7 @@ class TeamChatController extends Controller
 
         $data = $request->validate([
             'user_ids' => ['required', 'array', 'min:1', 'max:100'],
-            'user_ids.*' => ['integer', 'exists:users,id'],
+            'user_ids.*' => ['uuid', 'exists:users,id'],
         ]);
 
         $existing = $conversation->members()->pluck('users.id');
@@ -211,6 +212,7 @@ class TeamChatController extends Controller
         }
 
         $conversation->members()->detach($user->id);
+        $this->rotateKey($conversation, $user->id);
 
         $this->notifier->removedFromGroup($conversation, $user);
         Realtime::send(new ConversationChanged($conversation->id, 'members'), toOthers: true);
@@ -261,6 +263,17 @@ class TeamChatController extends Controller
                 'name' => "An open group called \"{$name}\" already exists. Join it from the Open groups list instead of creating a copy.",
             ]);
         }
+    }
+
+    /**
+     * Someone left, so the old key is no longer a secret from them. Start a new
+     * key version: the moderator's browser creates it next time the group is open,
+     * and everything written after that is unreadable to the person who left.
+     */
+    private function rotateKey(Conversation $conversation, string $leaverId): void
+    {
+        $conversation->keys()->where('user_id', $leaverId)->delete();
+        $conversation->increment('key_version');
     }
 
     /** A chat you are not in does not exist as far as you are concerned. */

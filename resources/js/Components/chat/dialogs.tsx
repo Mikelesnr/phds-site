@@ -82,7 +82,10 @@ export function NewDirectDialog({ people, onClose }: { people: ChatPerson[]; onC
                                     <Avatar name={person.name} />
                                     <span>
                                         <span className="block font-bold">{person.name}</span>
-                                        <span className="text-sm capitalize text-muted-foreground">{person.role}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                            <span className="capitalize">{person.role}</span>
+                                            {!person.has_keys && ' · has not set up secure chat yet'}
+                                        </span>
                                     </span>
                                 </button>
                             </li>
@@ -99,10 +102,10 @@ export function NewGroupDialog({ people, onClose }: { people: ChatPerson[]; onCl
         name: string;
         description: string;
         visibility: 'open' | 'private';
-        members: number[];
+        members: string[];
     }>({ name: '', description: '', visibility: 'private', members: [] });
 
-    const toggle = (id: number) =>
+    const toggle = (id: string) =>
         form.setData(
             'members',
             form.data.members.includes(id)
@@ -281,7 +284,7 @@ export function GroupAdminDialog({
 }) {
     const base = `${routes.teamChat}/${conversation.id}`;
     const details = useForm({ name: conversation.title, description: conversation.description ?? '' });
-    const [adding, setAdding] = useState<number[]>([]);
+    const [adding, setAdding] = useState<string[]>([]);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
     const memberIds = new Set(conversation.members.map((m) => m.id));

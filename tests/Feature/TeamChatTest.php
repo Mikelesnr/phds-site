@@ -13,12 +13,14 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Concerns\InteractsWithChat;
 use Tests\TestCase;
 
 class TeamChatTest extends TestCase
 {
-    use RefreshDatabase;
+    use InteractsWithChat, RefreshDatabase;
 
     private function group(User $moderator, array $members = [], bool $open = false, string $name = 'Lake team'): Conversation
     {
@@ -35,14 +37,18 @@ class TeamChatTest extends TestCase
             $conversation->members()->attach($member->id, ['role' => MemberRole::Member->value, 'last_read_at' => now()]);
         }
 
-        return $conversation;
+        return $this->keyed($conversation);
     }
 
     private function say(Conversation $conversation, User $author, string $body = 'Hello there'): Message
     {
-        $message = new Message(['body' => $body]);
+        $message = new Message;
         $message->conversation_id = $conversation->id;
         $message->user_id = $author->id;
+        $message->sender_id = $author->id;
+        $message->ciphertext = base64_encode($body);
+        $message->iv = base64_encode('0123456789ab');
+        $message->key_version = 1;
         $message->save();
 
         return $message;
@@ -75,7 +81,7 @@ class TeamChatTest extends TestCase
     {
         $a = User::factory()->create(['name' => 'Ada Okello']);
         $b = User::factory()->create(['name' => 'Brian Otieno']);
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
         $this->actingAs($a)->get("/team-chat/{$conversation->id}")
             ->assertInertia(fn (Assert $page) => $page->where('conversation.title', 'Brian Otieno'));
@@ -87,10 +93,10 @@ class TeamChatTest extends TestCase
     public function test_a_third_person_cannot_see_a_direct_chat(): void
     {
         [$a, $b, $c] = User::factory()->count(3)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
         $this->actingAs($c)->get("/team-chat/{$conversation->id}")->assertNotFound();
-        $this->actingAs($c)->postJson("/team-chat/{$conversation->id}/messages", ['body' => 'hi'])->assertNotFound();
+        $this->actingAs($c)->postJson("/team-chat/{$conversation->id}/messages", $this->cipher('hi'))->assertNotFound();
     }
 
     // ---------------------------------------------------------------- group rules
@@ -128,7 +134,7 @@ class TeamChatTest extends TestCase
         $group = $this->group($moderator, [$member], name: 'Secret project');
 
         $this->actingAs($outsider)->get("/team-chat/{$group->id}")->assertNotFound();
-        $this->actingAs($outsider)->postJson("/team-chat/{$group->id}/messages", ['body' => 'let me in'])->assertNotFound();
+        $this->actingAs($outsider)->postJson("/team-chat/{$group->id}/messages", $this->cipher('let me in'))->assertNotFound();
         $this->actingAs($outsider)->post("/team-chat/{$group->id}/join")->assertForbidden();
 
         $this->actingAs($outsider)->get('/team-chat')
@@ -280,24 +286,38 @@ class TeamChatTest extends TestCase
         $member->update(['name' => 'Grace Achieng']);
         $group = $this->group($moderator, [$member]);
 
-        $this->actingAs($member)->postJson("/team-chat/{$group->id}/messages", ['body' => '  Hello team  '])
+        $this->actingAs($member)->postJson("/team-chat/{$group->id}/messages", $payload = $this->cipher('sealed text'))
             ->assertCreated()
-            ->assertJsonPath('message.body', 'Hello team')
+            ->assertJsonPath('message.ciphertext', base64_encode('sealed text'))
+            ->assertJsonPath('message.id', $payload['id'])
             ->assertJsonPath('message.author', 'Grace Achieng')
             ->assertJsonPath('message.user_id', $member->id)
             ->assertJsonPath('message.edited', false);
 
-        $this->assertDatabaseHas('messages', ['conversation_id' => $group->id, 'user_id' => $member->id, 'body' => 'Hello team']);
+        $this->assertDatabaseHas('messages', ['conversation_id' => $group->id, 'user_id' => $member->id, 'ciphertext' => base64_encode('sealed text')]);
     }
 
-    public function test_empty_and_oversized_messages_are_rejected(): void
+    public function test_malformed_encrypted_messages_are_rejected(): void
     {
         [$a, $b] = User::factory()->count(2)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
-        $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", ['body' => '   '])->assertStatus(422);
-        $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", ['body' => ''])->assertStatus(422);
-        $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", ['body' => str_repeat('a', 4001)])->assertStatus(422);
+        foreach ([
+            ['ciphertext' => ''],
+            ['ciphertext' => 'not base64 !!'],
+            ['ciphertext' => str_repeat('a', 32769)],
+            ['iv' => ''],
+            ['key_version' => 0],
+            ['key_version' => 99],
+            ['id' => 'not-a-uuid'],
+        ] as $broken) {
+            $this->actingAs($a)
+                ->postJson("/team-chat/{$conversation->id}/messages", array_merge($this->cipher(), $broken))
+                ->assertStatus(422);
+        }
+
+        // The old plaintext shape is no longer accepted at all.
+        $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", ['body' => 'plain text'])->assertStatus(422);
 
         $this->assertSame(0, Message::count());
     }
@@ -314,11 +334,13 @@ class TeamChatTest extends TestCase
         $this->actingAs($b)->get("/team-chat/{$group->id}")
             ->assertInertia(fn (Assert $page) => $page
                 ->has('conversation.messages', 120)
-                ->where('conversation.messages.0.body', 'message 1')
-                ->where('conversation.messages.119.body', 'message 120')
+                ->where('conversation.messages.0.ciphertext', base64_encode('message 1'))
+                ->where('conversation.messages.119.ciphertext', base64_encode('message 120'))
+                ->where('conversation.messages.0.seq', 1)
+                ->where('conversation.messages.119.seq', 120)
                 ->where('conversation.messages.0.author', $b->name)
                 ->has('conversation.messages.0', fn (Assert $m) => $m
-                    ->hasAll(['id', 'conversation_id', 'user_id', 'author', 'body', 'deleted', 'edited', 'created_at'])));
+                    ->hasAll(['id', 'seq', 'conversation_id', 'user_id', 'sender_id', 'author', 'ciphertext', 'iv', 'key_version', 'deleted', 'edited', 'created_at'])));
     }
 
     public function test_only_the_author_can_edit_a_message(): void
@@ -327,13 +349,13 @@ class TeamChatTest extends TestCase
         $group = $this->group($moderator, [$member]);
         $message = $this->say($group, $member, 'original');
 
-        $this->actingAs($moderator)->patchJson("/team-chat/messages/{$message->id}", ['body' => 'hijacked'])->assertForbidden();
-        $this->actingAs($member)->patchJson("/team-chat/messages/{$message->id}", ['body' => 'fixed typo'])
+        $this->actingAs($moderator)->patchJson("/team-chat/messages/{$message->id}", $this->cipher('hijacked'))->assertForbidden();
+        $this->actingAs($member)->patchJson("/team-chat/messages/{$message->id}", $this->cipher('fixed typo'))
             ->assertOk()
-            ->assertJsonPath('message.body', 'fixed typo')
+            ->assertJsonPath('message.ciphertext', base64_encode('fixed typo'))
             ->assertJsonPath('message.edited', true);
 
-        $this->assertSame('fixed typo', $message->fresh()->body);
+        $this->assertSame(base64_encode('fixed typo'), $message->fresh()->ciphertext);
         $this->assertNotNull($message->fresh()->edited_at);
     }
 
@@ -348,8 +370,9 @@ class TeamChatTest extends TestCase
         $this->actingAs($bystander)->deleteJson("/team-chat/messages/{$mine->id}")->assertForbidden();
 
         $this->actingAs($author)->deleteJson("/team-chat/messages/{$mine->id}")
-            ->assertOk()->assertJsonPath('message.deleted', true)->assertJsonPath('message.body', null);
+            ->assertOk()->assertJsonPath('message.deleted', true)->assertJsonPath('message.ciphertext', null);
         $this->assertSoftDeleted($mine);
+        $this->assertSame('', Message::withTrashed()->find($mine->id)->ciphertext, 'the encrypted text is wiped too');
 
         $this->actingAs($moderator)->deleteJson("/team-chat/messages/{$theirs->id}")->assertOk();
         $this->assertSoftDeleted($theirs);
@@ -368,7 +391,7 @@ class TeamChatTest extends TestCase
     public function test_deleted_messages_stay_in_the_thread_without_their_text(): void
     {
         [$a, $b] = User::factory()->count(2)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
         $this->say($conversation, $a, 'secret words');
         $gone = $this->say($conversation, $b, 'oops');
         $gone->delete();
@@ -377,9 +400,9 @@ class TeamChatTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('conversation.messages', 2)
                 ->where('conversation.messages.1.deleted', true)
-                ->where('conversation.messages.1.body', null));
+                ->where('conversation.messages.1.ciphertext', null));
 
-        $this->actingAs($b)->patchJson("/team-chat/messages/{$gone->id}", ['body' => 'undelete'])->assertNotFound();
+        $this->actingAs($b)->patchJson("/team-chat/messages/{$gone->id}", $this->cipher('undelete'))->assertNotFound();
     }
 
     // ---------------------------------------------------------------- unread
@@ -387,7 +410,7 @@ class TeamChatTest extends TestCase
     public function test_unread_counts_follow_what_you_have_not_seen(): void
     {
         [$a, $b] = User::factory()->count(2)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
         $this->say($conversation, $b, 'one');
         $this->say($conversation, $b, 'two');
@@ -421,10 +444,10 @@ class TeamChatTest extends TestCase
         Event::fake([MessageCreated::class, MessageUpdated::class, MessageDeleted::class]);
 
         [$a, $b] = User::factory()->count(2)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
-        $id = $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", ['body' => 'hi'])->json('message.id');
-        $this->actingAs($a)->patchJson("/team-chat/messages/{$id}", ['body' => 'hi again']);
+        $id = $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", $this->cipher('hi'))->json('message.id');
+        $this->actingAs($a)->patchJson("/team-chat/messages/{$id}", $this->cipher('hi again'));
         $this->actingAs($a)->deleteJson("/team-chat/messages/{$id}");
 
         Event::assertDispatched(MessageCreated::class, fn ($e) => $e->broadcastOn()[0]->name === "private-conversations.{$conversation->id}");
@@ -437,17 +460,17 @@ class TeamChatTest extends TestCase
         Event::listen(MessageCreated::class, fn () => throw new \RuntimeException('Reverb is down'));
 
         [$a, $b] = User::factory()->count(2)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
-        $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", ['body' => 'still saved'])->assertCreated();
+        $this->actingAs($a)->postJson("/team-chat/{$conversation->id}/messages", $this->cipher('still saved'))->assertCreated();
 
-        $this->assertDatabaseHas('messages', ['body' => 'still saved']);
+        $this->assertDatabaseHas('messages', ['ciphertext' => base64_encode('still saved')]);
     }
 
     public function test_only_members_may_listen_to_a_conversation_channel(): void
     {
         [$a, $b, $outsider] = User::factory()->count(3)->create();
-        $conversation = Conversation::directBetween($a, $b);
+        $conversation = $this->dm($a, $b);
 
         $this->assertTrue($a->can('view', $conversation));
         $this->assertFalse($outsider->can('view', $conversation));
@@ -456,6 +479,6 @@ class TeamChatTest extends TestCase
     public function test_guests_are_sent_to_log_in(): void
     {
         $this->get('/team-chat')->assertRedirect('/login');
-        $this->postJson('/team-chat/1/messages', ['body' => 'x'])->assertUnauthorized();
+        $this->postJson('/team-chat/'.Str::uuid().'/messages', $this->cipher('x'))->assertUnauthorized();
     }
 }
