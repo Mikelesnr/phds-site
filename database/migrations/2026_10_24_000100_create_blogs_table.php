@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('blogs', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title', 160);
             $table->string('slug')->unique();
             $table->string('excerpt', 300);

@@ -8,7 +8,6 @@ use App\Models\Message;
 use App\Models\User;
 use App\Notifications\ChatActivity;
 use Illuminate\Notifications\DatabaseNotification;
-use Illuminate\Support\Str;
 
 class ChatNotifier
 {
@@ -25,7 +24,8 @@ class ChatNotifier
 
             $this->push($member, $conversation, 'message', [
                 'sender' => $sender?->name ?? 'Former member',
-                'preview' => Str::limit(preg_replace('/\s+/', ' ', $message->body), 90),
+                // The server cannot read messages, so there is nothing to preview.
+                'preview' => 'New message',
             ], collapse: true);
         }
     }
@@ -80,7 +80,7 @@ class ChatNotifier
         ]));
     }
 
-    private function findUnread(User $recipient, int $conversationId, string $kind): ?DatabaseNotification
+    private function findUnread(User $recipient, string $conversationId, string $kind): ?DatabaseNotification
     {
         return $recipient->unreadNotifications()
             ->latest()
@@ -91,7 +91,7 @@ class ChatNotifier
     }
 
     /** Opening a conversation reads its notifications too. */
-    public function markConversationRead(User $user, int $conversationId): void
+    public function markConversationRead(User $user, string $conversationId): void
     {
         $user->unreadNotifications()
             ->get()

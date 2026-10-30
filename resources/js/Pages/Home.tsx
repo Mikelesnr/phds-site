@@ -169,11 +169,11 @@ export default function Home({
                         </p>
                         <div className="mt-10">
                             <ButtonLink
-                                href={routes.getInvolved}
+                                href={routes.donate}
                                 variant="accent"
                                 className="px-8 py-4 text-lg"
                             >
-                                Partner With Us
+                                Donate
                             </ButtonLink>
                         </div>
                     </div>

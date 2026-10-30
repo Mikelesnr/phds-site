@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Enums\ConversationType;
 use App\Enums\ConversationVisibility;
 use App\Enums\MemberRole;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 #[Fillable(['name', 'description'])]
 class Conversation extends Model
 {
+    use HasUuids;
+
     protected function casts(): array
     {
         return [
@@ -35,12 +38,26 @@ class Conversation extends Model
     /** Every message in the conversation, oldest first. Loaded whole into the chat. */
     public function messages(): HasMany
     {
-        return $this->hasMany(Message::class)->oldest('id');
+        return $this->hasMany(Message::class)->oldest('seq');
     }
+
+    // app/Models/Conversation.php
 
     public function latestMessage(): HasOne
     {
-        return $this->hasOne(Message::class)->latestOfMany();
+        return $this->hasOne(Message::class)
+            ->whereRaw(
+                'messages.seq = ('
+                . 'select max(m2.seq) from messages m2 '
+                . 'where m2.conversation_id = messages.conversation_id '
+                . 'and m2.deleted_at is null'
+                . ')'
+            );
+    }
+
+    public function keys(): HasMany
+    {
+        return $this->hasMany(ConversationKey::class);
     }
 
     public function creator(): BelongsTo
@@ -83,7 +100,7 @@ class Conversation extends Model
     public static function directBetween(User $a, User $b): self
     {
         $ids = collect([$a->id, $b->id])->sort()->values();
-        $key = $ids->implode('-');
+        $key = $ids->implode(':');
 
         return DB::transaction(function () use ($key, $a, $b) {
             $conversation = static::query()->where('direct_key', $key)->first();

@@ -30,7 +30,7 @@ export function NotificationBell() {
     const seen = useRef<Map<string, string | null> | null>(null);
 
     /** True when this conversation is the one on screen, where the chat plays its own sound. */
-    const isOpenConversation = (conversationId: number) =>
+    const isOpenConversation = (conversationId: string) =>
         !document.hidden && window.location.pathname === `${routes.teamChat}/${conversationId}`;
 
     const load = useCallback((announce = false) => {
