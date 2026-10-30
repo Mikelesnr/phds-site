@@ -18,7 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        // Safaricom calls this from outside, so it cannot carry our form token. The
+        // address itself carries a secret instead (see MpesaCallbackController).
+        $middleware->preventRequestForgery(except: ['mpesa/callback/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
