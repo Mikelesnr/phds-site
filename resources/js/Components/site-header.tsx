@@ -340,11 +340,11 @@ export function SiteHeader() {
                 <div className="flex items-center gap-2 self-center">
                     <ThemeToggle />
                     <ButtonLink
-                        href={routes.getInvolved}
+                        href={routes.donate}
                         variant="accent"
                         className="hidden px-5 py-2.5 sm:inline-flex"
                     >
-                        Partner With Us
+                        Donate
                     </ButtonLink>
                     <button
                         type="button"
@@ -427,11 +427,11 @@ export function SiteHeader() {
                         </Link>
                         <div className="pt-4">
                             <ButtonLink
-                                href={routes.getInvolved}
+                                href={routes.donate}
                                 variant="accent"
                                 className="w-full"
                             >
-                                Partner With Us
+                                Donate
                             </ButtonLink>
                         </div>
                     </div>

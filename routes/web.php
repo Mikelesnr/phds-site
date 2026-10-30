@@ -10,6 +10,10 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TeamChatController;
 use App\Http\Controllers\TeamMessageController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DonateController;
+use App\Http\Controllers\MpesaCallbackController;
+use App\Http\Controllers\Admin\CampaignController;
+use App\Http\Controllers\Admin\DonationController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\PageController;
 use Illuminate\Support\Facades\Route;
@@ -128,3 +132,25 @@ Route::middleware('auth')
         Route::post('/', 'store')->name('store');
         Route::post('/reset', 'reset')->name('reset');
     });
+
+// Donations: a general gift that is always on, and gifts to a campaign.
+Route::get('/donate', [DonateController::class, 'index'])->name('donate');
+Route::get('/donate/campaigns/{campaign:slug}', [DonateController::class, 'campaign'])->name('donate.campaign');
+Route::post('/donate', [DonateController::class, 'start'])->middleware('throttle:donations')->name('donate.start');
+Route::get('/donate/status/{donation}', [DonateController::class, 'status'])->middleware('throttle:90,1')->name('donate.status');
+
+// Safaricom reports each payment here. No CSRF token: the secret is in the address.
+Route::post('/mpesa/callback/{token}/{donation}', MpesaCallbackController::class)->name('mpesa.callback');
+
+// Back office: campaigns and donations. Administrators only, enforced by policies.
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
+    Route::get('/campaigns/create', [CampaignController::class, 'create'])->name('campaigns.create');
+    Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
+    Route::get('/campaigns/{campaign}/edit', [CampaignController::class, 'edit'])->name('campaigns.edit');
+    Route::put('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
+    Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
+
+    Route::get('/donations', [DonationController::class, 'index'])->name('donations.index');
+    Route::get('/donations/export', [DonationController::class, 'export'])->name('donations.export');
+});
