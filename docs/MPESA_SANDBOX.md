@@ -44,6 +44,19 @@ Open `/donate`, enter 10 (or any amount), and use a sandbox test number such as
 `254708374149`. Submit, then check the phone prompt in the sandbox simulator,
 or enter the sandbox PIN.
 
+## 4a. If a payment fails straight away
+
+Find Daraja's own answer in the log:
+
+```
+grep "M-Pesa STK push refused" storage/logs/laravel.log | tail -1
+```
+
+The `body` field is Safaricom's exact reply, for example `Invalid CallBackURL`
+or `Invalid Amount`. The line also shows the callback URL, shortcode and amount
+that were sent, so a wrong `MPESA_CALLBACK_BASE` or shortcode is easy to spot.
+Paste that line to me.
+
 ## 5. What to send me
 
 If anything fails, send the output of these three things. They are what I need

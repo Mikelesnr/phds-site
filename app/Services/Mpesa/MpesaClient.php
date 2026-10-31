@@ -65,6 +65,18 @@ class MpesaClient
             return $json;
         }
 
+        // Keep Daraja's exact answer. The donor only sees a plain message, so this is
+        // where the real reason (bad shortcode, callback rejected, wrong amount...) lives.
+        \Log::error('M-Pesa STK push refused', [
+            'donation' => $donation->id,
+            'http_status' => $response->status(),
+            'body' => \Illuminate\Support\Str::limit($response->body(), 1500),
+            'callback_url' => $body['CallBackURL'],
+            'amount' => $body['Amount'],
+            'shortcode' => $body['BusinessShortCode'],
+            'transaction_type' => $body['TransactionType'],
+        ]);
+
         throw new MpesaRejected((string) ($json['errorMessage'] ?? $json['ResponseDescription'] ?? 'M-Pesa refused the request.'));
     }
 
@@ -133,7 +145,6 @@ class MpesaClient
             ->post($this->baseUrl() . $path, $body);
     }
 
-    /** A short-lived access token, kept until just before it expires. */
     /** A short-lived access token, kept until just before it expires. */
     private function token(bool $fresh = false): string
     {

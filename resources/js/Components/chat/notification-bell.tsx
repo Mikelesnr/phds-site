@@ -26,6 +26,8 @@ export function NotificationBell() {
     const [unread, setUnread] = useState(0);
     const [items, setItems] = useState<NotificationItem[]>([]);
     const wrapper = useRef<HTMLDivElement>(null);
+    // On phones the panel is placed just below the bell, full width, so it never runs off the screen.
+    const [panelTop, setPanelTop] = useState<number | null>(null);
     // What we had already seen, so only genuinely new notifications make a sound.
     const seen = useRef<Map<string, string | null> | null>(null);
 
@@ -122,7 +124,10 @@ export function NotificationBell() {
         <div ref={wrapper} className="relative">
             <button
                 type="button"
-                onClick={() => {
+                onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const phone = window.matchMedia('(max-width: 639px)').matches;
+                    setPanelTop(phone ? rect.bottom + 8 : null);
                     setOpen((value) => !value);
                     load();
                 }}
@@ -145,7 +150,8 @@ export function NotificationBell() {
                 <div
                     role="dialog"
                     aria-label="Notifications"
-                    className="absolute right-0 top-12 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+                    style={panelTop !== null ? { top: panelTop } : undefined}
+                    className="fixed inset-x-3 z-50 overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[22rem]"
                 >
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
                         <h2 className="font-sans text-base font-bold">Notifications</h2>

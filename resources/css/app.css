@@ -39,21 +39,39 @@
     --banner: #4a3600;
 }
 
+/*
+ * Dark mode, built from the brand palette:
+ *   #040605 near black   -> page background
+ *   #145A3A deep green   -> bands, feature panels
+ *   #2F7D5B green        -> primary buttons and accents
+ *   #568A6E sage         -> links and highlights on dark
+ *   #808A87 grey         -> secondary text
+ *   #CBBFA6 sand         -> body text on dark surfaces, light buttons
+ * Surfaces between the black and deep green are mixes of those two.
+ */
 .dark {
-    --background: #1a2315;
-    --foreground: #f3f1e8;
-    --card: #212d1b;
-    --card-foreground: #f3f1e8;
-    --muted: #1f281a;
-    --muted-foreground: #b0baa3;
-    --border: #34422c;
-    --primary: #84bb5c;
-    --primary-foreground: #11200b;
-    --accent: #84bb5c;
-    --accent-foreground: #11200b;
-    --highlight: #8cc765;
-    --nav: #111310;
-    --ring: #8cc765;
+    --background: #040605;
+    --foreground: #f1ecdf;
+    --card: #0b1510;
+    --card-foreground: #f1ecdf;
+    --muted: #0e1b14;
+    --muted-foreground: #9aa59f;
+    --border: #1c3428;
+    --primary: #cbbfa6;
+    --primary-foreground: #040605;
+    --accent: #2f7d5b;
+    --accent-foreground: #ffffff;
+    --highlight: #7fb096;
+    --nav: #040605;
+    --ring: #568a6e;
+    --band: #145a3a;
+    --band-foreground: #f1ecdf;
+    --band-muted: #cbbfa6;
+    --lime: #cbbfa6;
+    --ink: #040605;
+    --forest: #0f3f29;
+    --lagoon: #102a2a;
+    --banner: #145a3a;
 }
 
 @theme inline {
