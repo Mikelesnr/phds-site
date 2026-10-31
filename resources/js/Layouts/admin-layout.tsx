@@ -70,8 +70,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return (
         <div className="bg-background text-foreground flex min-h-screen flex-col">
             <header className="border-border bg-nav border-b">
-                <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-3 sm:px-8">
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-6 sm:px-8">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-x-6">
                         <Link
                             href={routes.home}
                             className="flex items-center gap-2.5"
@@ -84,7 +84,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                 Back office
                             </span>
                         </Link>
-                        <nav aria-label="Back office" className="flex gap-1">
+                        <nav aria-label="Back office" className="-mx-1 flex max-w-full gap-1 overflow-x-auto whitespace-nowrap px-1 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 sm:pb-0">
                             {link(
                                 '/dashboard',
                                 'Dashboard',
@@ -110,8 +110,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         </nav>
                     </div>
 
-                    <div className="flex items-center gap-3 text-sm">
-                        <span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm sm:flex-nowrap sm:justify-end sm:gap-3">
+                        <span className="min-w-0 truncate sm:max-w-none">
                             {auth.user.name}{' '}
                             <span className="text-muted-foreground">
                                 ({roleLabels[auth.user.role] ?? auth.user.role})
@@ -125,7 +125,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                             onClick={() => void clearUnlessKept(auth.user.id)}
                             method="post"
                             as="button"
-                            className="border-border hover:bg-muted rounded-lg border px-4 py-2 font-bold transition"
+                            className="border-border hover:bg-muted rounded-lg border px-3 py-2 font-bold whitespace-nowrap transition sm:px-4"
                         >
                             Log out
                         </Link>
