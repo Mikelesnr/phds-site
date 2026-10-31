@@ -34,7 +34,7 @@ export default function Index({ users }: { users: AdminUserRow[] }) {
                     </p>
                 )}
 
-                <div className="mt-8 overflow-x-auto rounded-3xl border border-border bg-card">
+                <div className="mt-8 hidden overflow-x-auto rounded-3xl border border-border bg-card sm:block">
                     <table className="w-full text-left">
                         <thead className="border-b border-border text-sm text-muted-foreground">
                             <tr>
@@ -100,6 +100,59 @@ export default function Index({ users }: { users: AdminUserRow[] }) {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Phones get one card per person. The table is shown from the sm breakpoint up. */}
+                <ul className="mt-8 space-y-3 sm:hidden" data-testid="user-cards">
+                    {users.map((user) => (
+                        <li key={user.id} data-testid="user-card" className="rounded-2xl border border-border bg-card p-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="truncate font-bold">
+                                        {user.name}
+                                        {user.is_me && (
+                                            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 align-middle text-xs font-bold text-muted-foreground">
+                                                You
+                                            </span>
+                                        )}
+                                    </p>
+                                    <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+                                </div>
+                                <span
+                                    className={
+                                        user.role === 'admin'
+                                            ? 'shrink-0 rounded-full bg-accent/25 px-3 py-1 text-xs font-bold text-highlight'
+                                            : 'shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-bold'
+                                    }
+                                >
+                                    {user.role === 'admin' ? 'Administrator' : 'Staff'}
+                                </span>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3 text-sm text-muted-foreground">
+                                <span>{user.blogs_count} {user.blogs_count === 1 ? 'post' : 'posts'} · added {user.created_at}</span>
+                                <div className="flex shrink-0 gap-1">
+                                    <Link
+                                        href={`${routes.adminUsers}/${user.id}/edit`}
+                                        aria-label={`Edit ${user.name}`}
+                                        className="inline-flex size-10 items-center justify-center rounded-full hover:bg-muted"
+                                    >
+                                        <Pencil className="size-4" aria-hidden="true" />
+                                    </Link>
+                                    {!user.is_me && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setPending(user)}
+                                            aria-label={`Delete ${user.name}`}
+                                            className="inline-flex size-10 items-center justify-center rounded-full text-red-600 hover:bg-muted dark:text-red-400"
+                                        >
+                                            <Trash2 className="size-4" aria-hidden="true" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+
             </div>
 
             {pending && (

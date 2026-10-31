@@ -315,7 +315,7 @@ export function ChatWidget({ raised }: { raised: boolean }) {
                     )}
                 >
                     {tab === 'home' && (
-                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[radial-gradient(120%_80%_at_0%_0%,#2d8a3a_0%,#1d3a17_45%,#141713_85%)]">
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[radial-gradient(120%_80%_at_0%_0%,#2f7d5b_0%,#145a3a_45%,#040605_85%)]">
                             <div className="flex items-start justify-between p-5">
                                 <LogoMark className="size-11" />
                                 {headerButtons}
